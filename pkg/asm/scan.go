@@ -29,13 +29,15 @@ func (t Token) String() string {
 	var start string
 	switch t.TokenType {
 	case token.Identifier:
-		start = fmt.Sprintf("Ident(%s)", t.Lexeme)
+		start = t.Lexeme
 	case token.Number:
-		start = fmt.Sprintf("Num(0x%X)", t.Number)
+		start = fmt.Sprintf("%d", t.Number)
+	case token.Unknown:
+		start = fmt.Sprintf("UNKNOWN(%s)", t.Lexeme)
 	default:
 		start = t.TokenType.String()
 	}
-	return fmt.Sprintf("%s %s", start, t.Ref)
+	return start
 }
 
 func (t *Token) Equal(other *Token) bool {
@@ -47,6 +49,8 @@ func (t *Token) Equal(other *Token) bool {
 		return t.Lexeme == other.Lexeme
 	case token.Number:
 		return t.Number == other.Number
+	case token.Unknown:
+		return t.Lexeme == other.Lexeme
 	default:
 		return true
 	}
@@ -73,12 +77,14 @@ func (s *scanner) scanFile(content string, name string) ([]Token, error) {
 		t, err := s.nextToken()
 		if err != nil {
 			errs = errors.Join(errs, err)
-			continue
 		}
 		tokens = append(tokens, t)
 		if t.TokenType == token.EndOfFile {
 			break
 		}
+	}
+	if errs != nil {
+		errs = errors.Join(fmt.Errorf("error while scanning assembly"), errs)
 	}
 	return tokens, errs
 }
@@ -117,8 +123,12 @@ func (s *scanner) buildToken(lexeme string, ref FileRef) (Token, error) {
 		return tok, nil
 	}
 
-	tok.TokenType = token.Identifier
-	return tok, nil
+	c := lexeme[0]
+	if s.isIdentifierByte(c) && !s.isNumberByte(c) && c != '.' {
+		tok.TokenType = token.Identifier
+		return tok, nil
+	}
+	return tok, UnknownTokenError{tok}
 }
 
 func (s *scanner) nextLexeme() (string, FileRef) {
@@ -131,11 +141,15 @@ func (s *scanner) nextLexeme() (string, FileRef) {
 	}
 	if !s.isIdentifierByte(c) {
 		s.advancePointer()
-		// check if we have a "//" comment
+		// check if we have a "//" or "/*" comment
 		if c == '/' {
 			c, _ := s.peak()
 			if c == '/' {
 				s.skipLine()
+				return s.nextLexeme()
+			}
+			if c == '*' {
+				s.skipComment()
 				return s.nextLexeme()
 			}
 		}
@@ -169,11 +183,35 @@ func (s *scanner) skipLine() {
 	}
 }
 
+func (s *scanner) skipComment() {
+	for {
+		c, eof := s.peak()
+		if eof {
+			return
+		}
+		s.advancePointer()
+		if c == '*' {
+			c, eof := s.peak()
+			if eof {
+				return
+			}
+			s.advancePointer()
+			if c == '/' {
+				return
+			}
+		}
+	}
+}
+
 func (s *scanner) isIdentifierByte(b byte) bool {
 	return (b >= 'a' && b <= 'z') ||
 		(b >= 'A' && b <= 'Z') ||
-		(b >= '0' && b <= '9') ||
+		s.isNumberByte(b) ||
 		b == '_' || b == '.'
+}
+
+func (s *scanner) isNumberByte(b byte) bool {
+	return (b >= '0' && b <= '9')
 }
 
 // Gets the next character.

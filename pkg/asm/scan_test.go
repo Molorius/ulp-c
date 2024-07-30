@@ -30,6 +30,10 @@ func ident(s string) Token {
 	return Token{TokenType: token.Identifier, Lexeme: s}
 }
 
+func unknown(s string) Token {
+	return Token{TokenType: token.Unknown, Lexeme: s}
+}
+
 func Test_scanner_scanFile(t *testing.T) {
 	f := "test.S"
 	tests := []struct {
@@ -51,13 +55,30 @@ func Test_scanner_scanFile(t *testing.T) {
 		},
 		{
 			name: "slash comment",
-			asm:  "add // this is a test",
-			want: []Token{tok(token.Add), tok(token.EndOfFile)},
+			asm:  "add // this is a test\n1",
+			want: []Token{tok(token.Add), num(1), tok(token.EndOfFile)},
 		},
 		{
 			name: "pound comment",
-			asm:  "add # this is a test",
-			want: []Token{tok(token.Add), tok(token.EndOfFile)},
+			asm:  "add # this is a test\n1",
+			want: []Token{tok(token.Add), num(1), tok(token.EndOfFile)},
+		},
+		{
+			name: "multiline comment",
+			asm:  "add /* this\nis\na\ntest */1",
+			want: []Token{tok(token.Add), num(1), tok(token.EndOfFile)},
+		},
+		{
+			name: "inline comment",
+			asm:  "add/* this is a test */1",
+			want: []Token{tok(token.Add), num(1), tok(token.EndOfFile)},
+		},
+		{
+			// I'm not sure if I want an error here instead, but
+			// currently this will silently exit
+			name: "unfinished comment",
+			asm:  "123/*",
+			want: []Token{num(123), tok(token.EndOfFile)},
 		},
 		{
 			name: "adjacent characters",
@@ -72,6 +93,62 @@ func Test_scanner_scanFile(t *testing.T) {
 				ident("TEST"),
 				tok(token.EndOfFile),
 			},
+		},
+		{
+			name: "sections",
+			asm:  ".boot .text .data .bss",
+			want: []Token{
+				tok(token.Boot),
+				tok(token.Text),
+				tok(token.Data),
+				tok(token.Bss),
+				tok(token.EndOfFile),
+			},
+		},
+		{
+			name: "numbers",
+			asm:  "0 123 0x123 0o15 -50",
+			want: []Token{
+				num(0),
+				num(123),
+				num(0x123),
+				num(0o15),
+				tok(token.Minus),
+				num(50),
+				tok(token.EndOfFile),
+			},
+		},
+		{
+			name: "error assorted unknown chars",
+			asm:  "!~@$%",
+			want: []Token{
+				unknown("!"),
+				unknown("~"),
+				unknown("@"),
+				unknown("$"),
+				unknown("%"),
+				tok(token.EndOfFile),
+			},
+			wantErr: true,
+		},
+		{
+			name: "error identifier starts with number",
+			asm:  "1test",
+			want: []Token{
+				unknown("1test"),
+				tok(token.EndOfFile),
+			},
+			wantErr: true,
+		},
+		{
+			name: "error unknown macro",
+			asm:  ".int .boot.data",
+			want: []Token{
+				unknown(".int"),
+				unknown(".boot.data"),
+				tok(token.EndOfFile),
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

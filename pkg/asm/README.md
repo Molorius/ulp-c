@@ -2,13 +2,12 @@
 Grammar:
 
 ```
-builtin : "__bss_start" | "__bss_end"
 ident   : [_.a-zA-Z0-9]*
 label   : ident ":"
 section : ".boot" | ".text" | ".data" | ".bss"
 global  : ".global" ident
 
-primary     : NUMBER | "." | builtin | ident | "(" expression ")"
+primary     : NUMBER | "." | ident | "(" expression ")"
 unary       : "-" unary
             | primary
 factor      : unary ( ( "/" | "*" ) unary )*
