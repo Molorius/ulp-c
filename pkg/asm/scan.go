@@ -14,6 +14,10 @@ type FileRef struct {
 	Index    int // the position within the line
 }
 
+func (f FileRef) String() string {
+	return fmt.Sprintf("%s:%d:%d", f.Filename, f.Line, f.Index)
+}
+
 type Token struct {
 	TokenType token.Type // the type that this token represents
 	Lexeme    string     // the original string
@@ -22,14 +26,16 @@ type Token struct {
 }
 
 func (t Token) String() string {
+	var start string
 	switch t.TokenType {
 	case token.Identifier:
-		return fmt.Sprintf("Ident(%s)", t.Lexeme)
+		start = fmt.Sprintf("Ident(%s)", t.Lexeme)
 	case token.Number:
-		return fmt.Sprintf("Num(0x%X)", t.Number)
+		start = fmt.Sprintf("Num(0x%X)", t.Number)
 	default:
-		return t.TokenType.String()
+		start = t.TokenType.String()
 	}
+	return fmt.Sprintf("%s %s", start, t.Ref)
 }
 
 func (t *Token) Equal(other *Token) bool {
@@ -79,10 +85,13 @@ func (s *scanner) scanFile(content string, name string) ([]Token, error) {
 
 func (s *scanner) nextToken() (Token, error) {
 	s.trimWhitespace()
-	ref := FileRef{Filename: s.filename, Line: s.line, Index: s.linePosition}
-	lexeme := s.nextLexeme()
+	lexeme, ref := s.nextLexeme()
 	tok, err := s.buildToken(lexeme, ref)
 	return tok, err
+}
+
+func (s *scanner) buildFileRef() FileRef {
+	return FileRef{Filename: s.filename, Line: s.line, Index: s.linePosition}
 }
 
 func (s *scanner) buildToken(lexeme string, ref FileRef) (Token, error) {
@@ -112,23 +121,35 @@ func (s *scanner) buildToken(lexeme string, ref FileRef) (Token, error) {
 	return tok, nil
 }
 
-func (s *scanner) nextLexeme() string {
+func (s *scanner) nextLexeme() (string, FileRef) {
 	lexeme := ""
+	s.trimWhitespace()
+	f := s.buildFileRef()
 	c, eof := s.peak()
 	if eof {
-		return ""
+		return "", f
 	}
 	if !s.isIdentifierByte(c) {
 		s.advancePointer()
-		return string(c)
+		// check if we have a "//" comment
+		if c == '/' {
+			c, _ := s.peak()
+			if c == '/' {
+				s.skipLine()
+				return s.nextLexeme()
+			}
+		}
+		// check if we have a "#" comment
+		if c == '#' {
+			s.skipLine()
+			return s.nextLexeme()
+		}
+		return string(c), f
 	}
 	for {
 		c, eof := s.peak()
-		if eof {
-			return lexeme
-		}
-		if !s.isIdentifierByte(c) {
-			return lexeme
+		if eof || !s.isIdentifierByte(c) {
+			return lexeme, f
 		}
 		lexeme += string(c)
 		s.advancePointer()
@@ -136,7 +157,16 @@ func (s *scanner) nextLexeme() string {
 }
 
 func (s *scanner) skipLine() {
-
+	for {
+		c, eof := s.peak()
+		if eof {
+			return
+		}
+		s.advancePointer()
+		if c == '\n' {
+			return
+		}
+	}
 }
 
 func (s *scanner) isIdentifierByte(b byte) bool {

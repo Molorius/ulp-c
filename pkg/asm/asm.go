@@ -8,6 +8,6 @@ type Assembler struct {
 func (asm *Assembler) BuildFile(content string, name string) error {
 	s := scanner{}
 	tokens, err := s.scanFile(content, name)
-	fmt.Printf("tokens: %s\n", tokens)
+	fmt.Printf("tokens: %q\n", tokens)
 	return err
 }
