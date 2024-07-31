@@ -14,6 +14,7 @@ const (
 	RightParen             // token for ) symbol
 	Colon                  // token for : symbol
 	BackSlash              // token for \ symbol
+	NewLine                // token for newline "\n"
 
 	// literals
 
@@ -151,6 +152,8 @@ func (t Type) String() string {
 		return "Number"
 	case EndOfFile:
 		return "EOF"
+	case NewLine:
+		return "NewLine"
 	default:
 		return "UNKNOWN"
 	}
@@ -160,6 +163,9 @@ func ToType(str string) Type {
 	val, ok := toToken[str]
 	if ok {
 		return val
+	}
+	if str == "\n" {
+		return NewLine
 	}
 	return Unknown
 }

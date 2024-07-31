@@ -173,13 +173,10 @@ func (s *scanner) nextLexeme() (string, FileRef) {
 func (s *scanner) skipLine() {
 	for {
 		c, eof := s.peak()
-		if eof {
+		if eof || c == '\n' {
 			return
 		}
 		s.advancePointer()
-		if c == '\n' {
-			return
-		}
 	}
 }
 
@@ -234,7 +231,7 @@ func (s *scanner) trimWhitespace() {
 }
 
 func (s *scanner) isWhitespace(b byte) bool {
-	return b == ' ' || b == '\n' || b == '\r' || b == '\t'
+	return b == ' ' || b == '\r' || b == '\t'
 }
 
 func (s *scanner) advancePointer() {

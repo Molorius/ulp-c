@@ -34,6 +34,10 @@ func unknown(s string) Token {
 	return Token{TokenType: token.Unknown, Lexeme: s}
 }
 
+func newline() Token {
+	return Token{TokenType: token.NewLine}
+}
+
 func Test_scanner_scanFile(t *testing.T) {
 	f := "test.S"
 	tests := []struct {
@@ -56,12 +60,12 @@ func Test_scanner_scanFile(t *testing.T) {
 		{
 			name: "slash comment",
 			asm:  "add // this is a test\n1",
-			want: []Token{tok(token.Add), num(1), tok(token.EndOfFile)},
+			want: []Token{tok(token.Add), newline(), num(1), tok(token.EndOfFile)},
 		},
 		{
 			name: "pound comment",
 			asm:  "add # this is a test\n1",
-			want: []Token{tok(token.Add), num(1), tok(token.EndOfFile)},
+			want: []Token{tok(token.Add), newline(), num(1), tok(token.EndOfFile)},
 		},
 		{
 			name: "multiline comment",

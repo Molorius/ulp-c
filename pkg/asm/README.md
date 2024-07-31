@@ -6,6 +6,8 @@ ident   : [_.a-zA-Z0-9]*
 label   : ident ":"
 section : ".boot" | ".text" | ".data" | ".bss"
 global  : ".global" ident
+directive : ( section | global )
+newline : "\n"
 
 primary     : NUMBER | "." | ident | "(" expression ")"
 unary       : "-" unary
@@ -57,7 +59,8 @@ ins     : ins0 param0
         | ins10 param10
         | ins_none
 
-start: ( section | label | global | ins )*
+statement: ( directive | ins ) newline
+program: ( label | statement )*
 
 ```
 
