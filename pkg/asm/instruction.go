@@ -48,7 +48,19 @@ func (s *StmntInstr) validate() error {
 			{isReg: true},
 			{isExpr: true},
 		})
-	// token.Jump will need more work
+	case token.Jump:
+		// jump has an optional parameter, try with that first
+		e := validateIns(*s, []validateInsHelperStruct{
+			{isExpr: true, isReg: true},
+			{isJump: true},
+		})
+		if e != nil {
+			// then try without it
+			e = validateIns(*s, []validateInsHelperStruct{
+				{isExpr: true, isReg: true},
+			})
+		}
+		return e
 	case token.Jumpr, token.Jumps:
 		return validateIns(*s, []validateInsHelperStruct{
 			{isExpr: true},
