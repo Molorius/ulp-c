@@ -15,18 +15,19 @@ const (
 	Colon                  // token for : symbol
 	BackSlash              // token for \ symbol
 	NewLine                // token for newline "\n"
+	Here                   // token for . symbol
 
 	// literals
 
 	Identifier // token for any identifier, such as a label
 	Number     // token for a number
 
+	__directive_start
 	// directives
 
 	Macro    // token for .macro
 	EndMacro // token for .endmacro
 	Global   // token for .global
-	Here     // token for .
 
 	// sections
 
@@ -34,16 +35,20 @@ const (
 	Text // token for .text
 	Data // token for .data
 	Bss  // token for .bss
+	__directive_end
 
 	// registers
 
+	__reg_start
 	R0 // token for r0 register
 	R1 // token for r1 register
 	R2 // token for r2 register
 	R3 // token for r3 register
+	__reg_end
 
 	// instructions
 
+	__instruction_start
 	Add      // token for add instruction
 	Sub      // token for sub instruction
 	And      // token for and instruction
@@ -68,13 +73,16 @@ const (
 	I2cWr    // token for i2c_wr instruction
 	RegRd    // token for reg_rd instruction
 	RegWr    // token for reg_wr instruction
+	__instruction_end
 
 	// instruction parameters
 
+	__jump_start
 	Ov // token for ov (overflow) parameter
 	Eq // token for eq (equals) parameter
 	Lt // token for lt (less than) parameter
 	Ge // token for ge (greater than or equal) parameter
+	__jump_end
 
 	EndOfFile // token for end of file
 	Unknown   // some unknown token that isn't a valid identifier
@@ -168,4 +176,20 @@ func ToType(str string) Type {
 		return NewLine
 	}
 	return Unknown
+}
+
+func (t Type) IsDirective() bool {
+	return t > __directive_start && t < __directive_end
+}
+
+func (t Type) IsInstruction() bool {
+	return t > __instruction_start && t < __instruction_end
+}
+
+func (t Type) IsJump() bool {
+	return t > __jump_start && t < __jump_end
+}
+
+func (t Type) IsRegister() bool {
+	return t > __reg_start && t < __reg_end
 }

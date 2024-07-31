@@ -8,6 +8,7 @@ section : ".boot" | ".text" | ".data" | ".bss"
 global  : ".global" ident
 directive : ( section | global )
 newline : "\n"
+splitter : newline | EOF
 
 primary     : NUMBER | "." | ident | "(" expression ")"
 unary       : "-" unary
@@ -59,8 +60,11 @@ ins     : ins0 param0
         | ins10 param10
         | ins_none
 
-statement: ( directive | ins ) newline
-program: ( label | statement )*
+statement : directive splitter
+          | ins splitter
+          | label
+
+program: statement* EOF
 
 ```
 

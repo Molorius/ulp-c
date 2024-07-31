@@ -24,7 +24,7 @@ type GenericTokenError struct {
 }
 
 func (e GenericTokenError) Error() string {
-	return fmt.Sprintf("%s: %s", e.token.Ref, e.message)
+	return fmt.Sprintf("%s: got \"%s\", %s", e.token.Ref, e.token.Lexeme, e.message)
 }
 
 type UnknownTokenError struct {
@@ -42,4 +42,24 @@ type UnfinishedError struct {
 
 func (e UnfinishedError) Error() string {
 	return fmt.Sprintf("%s: \"%s\" is unfinished, expected %s", e.token.Ref, e.token.Lexeme, e.expected)
+}
+
+type InstrArgTypeError struct {
+	Stmnt StmntInstr
+	ArgN  int // argument number
+}
+
+func (e InstrArgTypeError) Error() string {
+	return fmt.Sprintf("%s: %s has the wrong type on argument %d: %s",
+		e.Stmnt.Instruction.Ref, e.Stmnt.Instruction.Lexeme, 1+e.ArgN, e.Stmnt.Args[e.ArgN])
+}
+
+type InstrArgCountError struct {
+	token    Token
+	expected string
+	got      int
+}
+
+func (e InstrArgCountError) Error() string {
+	return fmt.Sprintf("%s: %s expected %s arguments but has %d", e.token.Ref, e.token.Lexeme, e.expected, e.got)
 }

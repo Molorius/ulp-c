@@ -12,17 +12,147 @@ type parser struct {
 	position int
 }
 
-func (p *parser) parseTokens(tokens []Token) (Expr, error) {
+func (p *parser) parseTokens(tokens []Token) ([]Stmnt, error) {
 	p.tokens = tokens
 	p.position = 0
-	exp, err := p.expression()
-	if err != nil {
-		return nil, errors.Join(fmt.Errorf("error while parsing assembly"), err)
-	}
-	return exp, nil
+	stmnt, err := p.program()
+	return stmnt, err
 }
 
-func (p *parser) expression() (Expr, error) {
+func (p *parser) program() ([]Stmnt, error) {
+	ret := make([]Stmnt, 0)
+	errs := error(nil)
+	for {
+		if p.match(token.EndOfFile) {
+			break
+		}
+		s, err := p.statement()
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf(""), err)
+			continue
+		}
+		ret = append(ret, s)
+	}
+	return ret, errs
+}
+
+func (p *parser) statement() (Stmnt, error) {
+	if p.match(token.NewLine) {
+		return p.statement()
+	}
+	t := p.peak()
+	if t.TokenType == token.Identifier {
+		return p.label()
+	}
+	s := Stmnt(nil)
+	err := error(nil)
+	if t.TokenType.IsDirective() {
+		s, err = p.directive()
+	} else if t.TokenType.IsInstruction() {
+		s, err = p.instruction()
+	} else {
+		err = GenericTokenError{t, "expected a statement"}
+	}
+
+	if err != nil {
+		p.nextLine()
+	} else {
+		// directives and instructions expect a newline/eof
+		e := p.consumeEndline()
+		if e != nil {
+			err = errors.Join(GenericTokenError{t, "error while building statement"}, e)
+			s = nil
+			p.nextLine()
+		}
+	}
+	return s, err
+}
+
+func (p *parser) directive() (Stmnt, error) {
+	t := p.next()
+	if !t.TokenType.IsDirective() {
+		return nil, GenericTokenError{t, "compiler bug in parser.directive(), please file a bug report"}
+	}
+	if t.TokenType == token.Global {
+		if p.match(token.Identifier) {
+			s := StmntGlobal{Label: p.previous()}
+			return s, nil
+		}
+		return nil, ExpectedTokenError{token.Identifier, p.next()}
+	}
+	return StmntDirective{t}, nil
+}
+
+func (p *parser) instruction() (Stmnt, error) {
+	t := p.next()
+	if !t.TokenType.IsInstruction() {
+		return nil, GenericTokenError{t, "compiler bug in parser.instruction(), please file a bug report"}
+	}
+	args, err := p.arguments()
+	if err != nil {
+		return nil, errors.Join(GenericTokenError{t, "could not parse arguments"}, err)
+	}
+	s := StmntInstr{t, args}
+	err = s.validate()
+	if err != nil {
+		return nil, err
+	}
+	return StmntInstr{t, args}, nil
+}
+
+func (p *parser) label() (Stmnt, error) {
+	if !p.match(token.Identifier) {
+		return nil, GenericTokenError{p.peak(), "compiler bug in parser.label(), please file a bug report"}
+	}
+	t := p.previous()
+	err := p.consume(token.Colon)
+	if err != nil {
+		return nil, errors.Join(GenericTokenError{t, "is this supposed to be a label?"}, err)
+	}
+	return StmntLabel{t}, nil
+}
+
+func (p *parser) arguments() ([]Arg, error) {
+	args := make([]Arg, 0)
+	errs := error(nil)
+	if p.isAtEndOfLine() {
+		return args, nil
+	}
+	a, err := p.argument()
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, a)
+	for p.match(token.Comma) {
+		op := p.previous()
+		a, err := p.argument()
+		if err != nil {
+			return nil, errors.Join(UnfinishedError{op, "an argument"}, err)
+		}
+		args = append(args, a)
+	}
+	return args, errs
+}
+
+func (p *parser) argument() (Arg, error) {
+	t := p.peak()
+	if t.TokenType.IsRegister() {
+		p.advancePointer()
+		return ArgReg{t}, nil
+	}
+	if t.TokenType.IsJump() {
+		p.advancePointer()
+		return ArgJump{t}, nil
+	}
+
+	expr, err := p.Expression()
+	if err != nil {
+		return nil, err
+	}
+	return ArgExpr{expr}, nil
+}
+
+func (p *parser) Expression() (Expr, error) {
 	expr, err := p.factor()
 	if err != nil {
 		return nil, err
@@ -85,7 +215,7 @@ func (p *parser) primary() (Expr, error) {
 	}
 	if p.match(token.LeftParen) {
 		left := p.previous()
-		e, err := p.expression()
+		e, err := p.Expression()
 		if err != nil {
 			return nil, errors.Join(UnfinishedError{left, "an expression"}, err)
 		}
@@ -100,7 +230,7 @@ func (p *parser) primary() (Expr, error) {
 	}
 	return nil, GenericTokenError{
 		token:   p.peak(),
-		message: "Expected an expression.",
+		message: "expected an expression",
 	}
 }
 
@@ -109,6 +239,12 @@ func (p *parser) primary() (Expr, error) {
 func (p *parser) peak() Token {
 	p.fixPointer()
 	return p.tokens[p.position]
+}
+
+func (p *parser) next() Token {
+	t := p.peak()
+	p.advancePointer()
+	return t
 }
 
 func (p *parser) fixPointer() {
@@ -129,9 +265,31 @@ func (p *parser) check(t token.Type) bool {
 	return p.peak().TokenType == t
 }
 
-// func (p *parser) isAtEnd() bool {
-// 	return p.check(token.EndOfFile)
-// }
+func (p *parser) isAtEnd() bool {
+	return p.check(token.EndOfFile)
+}
+
+func (p *parser) consumeEndline() error {
+	if p.isAtEnd() {
+		return nil
+	}
+	return p.consume(token.NewLine)
+}
+
+func (p *parser) nextLine() {
+	for {
+		err := p.consumeEndline()
+		if err == nil {
+			return
+		}
+		p.advancePointer()
+	}
+}
+
+func (p *parser) isAtEndOfLine() bool {
+	t := p.peak()
+	return t.TokenType == token.EndOfFile || t.TokenType == token.NewLine
+}
 
 func (p *parser) previous() Token {
 	return p.tokens[p.position-1]
@@ -140,7 +298,9 @@ func (p *parser) previous() Token {
 func (p *parser) match(toks ...token.Type) bool {
 	for _, t := range toks {
 		if p.check(t) {
-			p.advancePointer()
+			if t != token.EndOfFile {
+				p.advancePointer()
+			}
 			return true
 		}
 	}
