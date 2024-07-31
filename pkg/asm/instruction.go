@@ -14,7 +14,7 @@ type validateInsHelperStruct struct {
 
 func validateIns(s StmntInstr, v []validateInsHelperStruct) error {
 	if len(s.Args) != len(v) {
-		return InstrArgCountError{s.Instruction, fmt.Sprintf("%d", len(s.Args)), len(v)}
+		return InstrArgCountError{s.Instruction, fmt.Sprintf("%d", len(v)), len(s.Args)}
 	}
 	errs := error(nil)
 	for i := range v {
@@ -45,6 +45,7 @@ func (s *StmntInstr) validate() error {
 		})
 	case token.St, token.Ld:
 		return validateIns(*s, []validateInsHelperStruct{
+			{isReg: true},
 			{isReg: true},
 			{isExpr: true},
 		})

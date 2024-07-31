@@ -24,7 +24,7 @@ jumps_cond : "le" | "lt" | "ge"
 
 param0 : reg "," reg "," any
 param1 : reg "," any
-param2 : reg "," primary
+param2 : reg "," reg "," primary
 param3 : any ( "," jump_cond )?
 param4 : primary "," primary "," jumpr_cond
 param5 : primary "," primary "," jumps_cond

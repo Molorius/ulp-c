@@ -8,7 +8,33 @@ import (
 
 func main() {
 	asm := asm.Assembler{}
-	err := asm.BuildFile("jump 0, ov \n.global test  \ntest: add r0, r0, 0+5*(.+(4*16))\ntest2: sub r0, r0, 1+2\nwait 123", "quick_test.S")
+	s := `
+	.boot
+	.global boot
+boot:
+	move r0, 0
+	move r1, 0
+	move r3, 8172/4
+	move r2, .+8
+	jump main
+finished:
+	jump finished
+
+	.text
+	.global main
+main:
+	sub r3, r3, 3
+	st r0, r3, 4*0
+	st r1, r3, 4*1
+	st r2, r3, 4*2
+
+	ld r2, r3, 4*2
+	ld r1, r3, 4*1
+	ld r0, r3, 4*0
+	add r3, r3, 3
+	jump r2
+`
+	err := asm.BuildFile(s, "quick_test.S")
 	if err != nil {
 		fmt.Println(err)
 	}
