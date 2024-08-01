@@ -16,10 +16,13 @@ func (asm *Assembler) BuildFile(content string, name string) error {
 	}
 	fmt.Printf("tokens: %q\n", tokens)
 	p := parser{}
-	expr, err := p.parseTokens(tokens)
+	stmnts, err := p.parseTokens(tokens)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error while parsing"), err)
 	}
-	fmt.Printf("statements: %s\n", expr)
+	fmt.Printf("statements: %s\n", stmnts)
+	c := Compiler{}
+	bin, err := c.Compile(stmnts)
+	fmt.Printf("binary: %v\n", bin)
 	return err
 }

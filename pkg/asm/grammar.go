@@ -5,14 +5,32 @@ import "fmt"
 // statements
 
 type Stmnt interface {
+	Size() int // the size of this statement after compilation, in bytes
+	Compile(int, map[string]*Label) ([]byte, error)
 }
 
 type StmntDirective struct {
 	Directive Token
 }
 
+func (s StmntDirective) Size() int {
+	return 0
+}
+
+func (s StmntDirective) Compile(here int, labels map[string]*Label) ([]byte, error) {
+	return nil, nil
+}
+
 type StmntGlobal struct {
 	Label Token
+}
+
+func (s StmntGlobal) Size() int {
+	return 0
+}
+
+func (s StmntGlobal) Compile(here int, labels map[string]*Label) ([]byte, error) {
+	return nil, nil
 }
 
 func (s StmntGlobal) String() string {
@@ -24,8 +42,24 @@ type StmntInstr struct {
 	Args        []Arg
 }
 
+func (s StmntInstr) Size() int {
+	return 4
+}
+
+func (s StmntInstr) Compile(here int, labels map[string]*Label) ([]byte, error) {
+	return []byte{0, 0, 0, 0}, nil
+}
+
 type StmntLabel struct {
 	Label Token
+}
+
+func (s StmntLabel) Size() int {
+	return 0
+}
+
+func (s StmntLabel) Compile(here int, labels map[string]*Label) ([]byte, error) {
+	return nil, nil
 }
 
 func (s StmntLabel) String() string {

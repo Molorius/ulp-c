@@ -33,6 +33,13 @@ main:
 	ld r0, r3, 4*0
 	add r3, r3, 3
 	jump r2
+
+	.data
+	move r0, 0
+	move r0, 0
+
+	.bss
+	move r0, 0
 `
 	err := asm.BuildFile(s, "quick_test.S")
 	if err != nil {
