@@ -15,7 +15,7 @@ type Label struct {
 }
 
 type Section struct {
-	Size   int
+	Size   int // size in bytes
 	Bin    []byte
 	Offset int // offset from start of program
 }
@@ -169,8 +169,13 @@ func (c *Compiler) compileAll() error {
 		case StmntDirective:
 			c.setSection(s.Directive.TokenType)
 		}
-		here := c.CurrentSection.Offset + len(c.CurrentSection.Bin)
-		bin, err := stmnt.Compile(here, c.Labels)
+		hereVal := c.CurrentSection.Offset + len(c.CurrentSection.Bin)
+		here := Label{
+			Name:  ".",
+			Value: hereVal,
+		}
+		c.Labels["."] = &here
+		bin, err := stmnt.Compile(c.Labels)
 		if err != nil {
 			return err
 		}
@@ -199,7 +204,7 @@ func (c *Compiler) validateSections() error {
 		errs = errors.Join(errs, err)
 	}
 
-	for _, b := range c.Boot.Bin {
+	for _, b := range c.Bss.Bin {
 		if b != 0 {
 			errs = errors.Join(errs, fmt.Errorf(".bss section contains non-zero data"))
 			break
@@ -226,7 +231,9 @@ func (c *Compiler) buildBinary() ([]byte, error) {
 
 	// build header
 	magic := 0x00706c75
-	textAddr := 0
+	// the ".text" section starts at 12 within the binary,
+	// the section will be loaded at 0 within ram though
+	textAddr := 12
 	textSize := c.Boot.Size + c.Text.Size
 	dataSize := c.Data.Size
 	bssSize := c.Bss.Size
@@ -260,3 +267,7 @@ func byteInt(i int) []byte {
 		byte(i >> 24),
 	}
 }
+
+// func ulpAddr(addr int) int {
+// 	return addr / 4
+// }

@@ -35,6 +35,14 @@ func (e UnknownTokenError) Error() string {
 	return fmt.Sprintf("%s: unknown token \"%s\"", e.token.Ref, e.token.Lexeme)
 }
 
+type UnknownIdentifierError struct {
+	token Token
+}
+
+func (e UnknownIdentifierError) Error() string {
+	return fmt.Sprintf("%s: unknown label \"%s\"", e.token.Ref, e.token.Lexeme)
+}
+
 type UnfinishedError struct {
 	token    Token
 	expected string

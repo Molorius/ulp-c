@@ -30,7 +30,6 @@ func validateIns(s StmntInstr, v []validateInsHelperStruct) error {
 }
 
 func (s *StmntInstr) validate() error {
-	// nArgMsg := "incorrect number of arguments"
 	switch s.Instruction.TokenType {
 	case token.Add, token.Sub, token.And, token.Or, token.Lsh, token.Rsh:
 		return validateIns(*s, []validateInsHelperStruct{
@@ -50,15 +49,16 @@ func (s *StmntInstr) validate() error {
 			{isExpr: true},
 		})
 	case token.Jump:
-		// jump has an optional parameter, try with that first
+		// jump has an optional parameter, try without that first
 		e := validateIns(*s, []validateInsHelperStruct{
 			{isExpr: true, isReg: true},
-			{isJump: true},
 		})
+
 		if e != nil {
-			// then try without it
+			// then try with it
 			e = validateIns(*s, []validateInsHelperStruct{
 				{isExpr: true, isReg: true},
+				{isJump: true},
 			})
 		}
 		return e
@@ -104,4 +104,146 @@ func (s *StmntInstr) validate() error {
 	default:
 		return UnknownTokenError{s.Instruction}
 	}
+}
+
+func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
+	s.labels = &labels
+	switch s.Instruction.TokenType {
+	case token.Add:
+		return s.compileAlu(0)
+	case token.Sub:
+		return s.compileAlu(1)
+	case token.And:
+		return s.compileAlu(2)
+	case token.Or:
+		return s.compileAlu(3)
+	case token.Move:
+		return s.compileMove()
+	case token.Lsh:
+		return s.compileAlu(5)
+	case token.Rsh:
+		return s.compileAlu(6)
+	case token.Jump:
+		return s.compileJump()
+	default:
+		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
+	}
+}
+
+func (s *StmntInstr) compileAlu(aluSel int) ([]byte, error) {
+	rdst, err := s.Args[0].(ArgReg).Evaluate()
+	if err != nil {
+		return nil, err
+	}
+	rsrs1, err := s.Args[1].(ArgReg).Evaluate()
+	if err != nil {
+		return nil, err
+	}
+	// imm := 0
+	subOp := 0
+	imm, isReg, err := evalArgOrReg(s.Args[2], *s.labels)
+	if !isReg {
+		subOp = 1
+	}
+	if err != nil {
+		return nil, err
+	}
+	return insStandard(7, subOp, aluSel, imm, rsrs1, rdst), nil
+}
+
+func evalArgOrReg(arg Arg, labels map[string]*Label) (int, bool, error) {
+	isReg := false
+	imm := 0
+	err := error(nil)
+	switch third := arg.(type) {
+	case ArgReg:
+		imm, err = third.Evaluate()
+		if err != nil {
+			return 0, false, err
+		}
+		isReg = true
+	case ArgExpr:
+		imm, err = third.Expr.Evaluate(labels)
+		if err != nil {
+			return 0, false, err
+		}
+	default:
+		return 0, false, fmt.Errorf("could not evaluate in evalArgOrReg(), please file a bug report")
+	}
+	return imm, isReg, err
+}
+
+func (s *StmntInstr) compileMove() ([]byte, error) {
+	rdst, err := s.Args[0].(ArgReg).Evaluate()
+	if err != nil {
+		return nil, err
+	}
+	val, isReg, err := evalArgOrReg(s.Args[1], *s.labels)
+	if err != nil {
+		return nil, err
+	}
+	val = bitMask(val, 16)
+	imm := 0
+	rsrc1 := 0
+	subOp := 0
+	if !isReg {
+		subOp = 1
+		imm = val
+	} else {
+		rsrc1 = val
+	}
+	imm = bitMask(imm, 16)
+	return insStandard(7, subOp, 4, imm, rsrc1, rdst), nil
+}
+
+func (s *StmntInstr) compileJump() ([]byte, error) {
+	val, isReg, err := evalArgOrReg(s.Args[0], *s.labels)
+	if err != nil {
+		return nil, err
+	}
+	sel := 1 // register
+	if !isReg {
+		sel = 0 // immediate
+	}
+	jumpType := 0 // undonditional jump
+	// TODO: add other jump types
+	if len(s.Args) > 1 {
+		return nil, GenericTokenError{s.Instruction, "condition operand not supported yet"}
+	}
+	op := 8
+	subOp := 0
+	return insJump(op, subOp, jumpType, sel, val), nil
+}
+
+func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte {
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(subOp, 3) << 25
+	ins |= bitMask(aluSel, 4) << 21
+	ins |= bitMask(imm, 17) << 4
+	ins |= bitMask(rA, 2) << 2
+	ins |= bitMask(rB, 2)
+	return byteInt(ins)
+}
+
+func insJump(op int, subOp int, jumpType int, sel int, arg int) []byte {
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(subOp, 3) << 25
+	ins |= bitMask(jumpType, 3) << 22
+	ins |= bitMask(sel, 1) << 21
+	if sel == 0 {
+		ins |= bitMask(arg, 11) << 2
+	} else {
+		ins |= bitMask(arg, 2)
+	}
+	return byteInt(ins)
+}
+
+func bitMask(val int, bits int) int {
+	// create the bit mask
+	mask := 0
+	for i := 0; i < bits; i++ {
+		mask <<= 1
+		mask |= 1
+	}
+	return val & mask
 }

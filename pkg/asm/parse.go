@@ -31,7 +31,9 @@ func (p *parser) program() ([]Stmnt, error) {
 			errs = errors.Join(errs, fmt.Errorf(""), err)
 			continue
 		}
-		ret = append(ret, s)
+		if s != nil {
+			ret = append(ret, s)
+		}
 	}
 	return ret, errs
 }
@@ -39,6 +41,9 @@ func (p *parser) program() ([]Stmnt, error) {
 func (p *parser) statement() (Stmnt, error) {
 	if p.match(token.NewLine) {
 		return p.statement()
+	}
+	if p.match(token.EndOfFile) {
+		return nil, nil
 	}
 	t := p.peak()
 	if t.TokenType == token.Identifier {
@@ -92,12 +97,18 @@ func (p *parser) instruction() (Stmnt, error) {
 	if err != nil {
 		return nil, errors.Join(GenericTokenError{t, "could not parse arguments"}, err)
 	}
-	s := StmntInstr{t, args}
+	s := StmntInstr{
+		Instruction: t,
+		Args:        args,
+	}
 	err = s.validate()
 	if err != nil {
 		return nil, err
 	}
-	return StmntInstr{t, args}, nil
+	return StmntInstr{
+		Instruction: t,
+		Args:        args,
+	}, nil
 }
 
 func (p *parser) label() (Stmnt, error) {

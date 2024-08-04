@@ -1,12 +1,17 @@
 package asm
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/Molorius/ulp-c/pkg/asm/token"
+)
 
 // statements
 
 type Stmnt interface {
 	Size() int // the size of this statement after compilation, in bytes
-	Compile(int, map[string]*Label) ([]byte, error)
+	Compile(map[string]*Label) ([]byte, error)
 }
 
 type StmntDirective struct {
@@ -17,7 +22,7 @@ func (s StmntDirective) Size() int {
 	return 0
 }
 
-func (s StmntDirective) Compile(here int, labels map[string]*Label) ([]byte, error) {
+func (s StmntDirective) Compile(labels map[string]*Label) ([]byte, error) {
 	return nil, nil
 }
 
@@ -29,7 +34,7 @@ func (s StmntGlobal) Size() int {
 	return 0
 }
 
-func (s StmntGlobal) Compile(here int, labels map[string]*Label) ([]byte, error) {
+func (s StmntGlobal) Compile(labels map[string]*Label) ([]byte, error) {
 	return nil, nil
 }
 
@@ -40,14 +45,15 @@ func (s StmntGlobal) String() string {
 type StmntInstr struct {
 	Instruction Token
 	Args        []Arg
+	labels      *map[string]*Label
+}
+
+func (s StmntInstr) String() string {
+	return fmt.Sprintf("{%s %s}", s.Instruction, s.Args)
 }
 
 func (s StmntInstr) Size() int {
 	return 4
-}
-
-func (s StmntInstr) Compile(here int, labels map[string]*Label) ([]byte, error) {
-	return []byte{0, 0, 0, 0}, nil
 }
 
 type StmntLabel struct {
@@ -58,7 +64,7 @@ func (s StmntLabel) Size() int {
 	return 0
 }
 
-func (s StmntLabel) Compile(here int, labels map[string]*Label) ([]byte, error) {
+func (s StmntLabel) Compile(labels map[string]*Label) ([]byte, error) {
 	return nil, nil
 }
 
@@ -69,6 +75,7 @@ func (s StmntLabel) String() string {
 // expressions
 
 type Expr interface {
+	Evaluate(map[string]*Label) (int, error)
 }
 
 type ExprBinary struct {
@@ -77,8 +84,35 @@ type ExprBinary struct {
 	Operator Token
 }
 
+func (e ExprBinary) Evaluate(labels map[string]*Label) (int, error) {
+	errs := error(nil)
+	left, err := e.Left.Evaluate(labels)
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+	right, err := e.Right.Evaluate(labels)
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+	if errs != nil {
+		return 0, errs
+	}
+	switch e.Operator.TokenType {
+	case token.Minus:
+		return left - right, nil
+	case token.Plus:
+		return left + right, nil
+	case token.Slash:
+		return left / right, nil
+	case token.Star:
+		return left * right, nil
+	default:
+		return 0, GenericTokenError{e.Operator, "unknown binary token, please file a bug report"}
+	}
+}
+
 func (exp ExprBinary) String() string {
-	return fmt.Sprintf("(%s %s %s)", exp.Operator, exp.Left, exp.Right)
+	return fmt.Sprintf("(%s%s%s)", exp.Left, exp.Operator, exp.Right)
 }
 
 type ExprUnary struct {
@@ -86,12 +120,45 @@ type ExprUnary struct {
 	Operator   Token
 }
 
+func (e ExprUnary) Evaluate(labels map[string]*Label) (int, error) {
+	val, err := e.Expression.Evaluate(labels)
+	if err != nil {
+		return 0, err
+	}
+	switch e.Operator.TokenType {
+	case token.Minus:
+		return -val, nil
+	default:
+		return 0, GenericTokenError{e.Operator, "unknown unary token, please file a bug report"}
+	}
+}
+
 func (exp ExprUnary) String() string {
-	return fmt.Sprintf("(%s %s)", exp.Operator, exp.Expression)
+	return fmt.Sprintf("(%s%s)", exp.Operator, exp.Expression)
 }
 
 type ExprLiteral struct {
 	Operator Token
+}
+
+func (e ExprLiteral) Evaluate(labels map[string]*Label) (int, error) {
+	switch e.Operator.TokenType {
+	case token.Number:
+		return e.Operator.Number, nil
+	case token.Identifier:
+		l, ok := labels[e.Operator.Lexeme]
+		if !ok {
+			return 0, UnknownIdentifierError{e.Operator}
+		}
+		return l.Value / 4, nil
+	case token.Here:
+		l, ok := labels["."]
+		if !ok {
+			return 0, GenericTokenError{e.Operator, "the \"Here\" token \".\" not set, please file a bug report"}
+		}
+		return l.Value / 4, nil
+	}
+	return 0, nil
 }
 
 func (exp ExprLiteral) String() string {
@@ -120,6 +187,29 @@ func (a ArgReg) IsJump() bool {
 
 func (a ArgReg) IsExpr() bool {
 	return false
+}
+
+func (a ArgReg) ToExpr() ArgExpr {
+	i, _ := a.Evaluate()
+	t := a.Reg
+	t.Number = i
+	t.TokenType = token.Number
+	return ArgExpr{Expr: ExprLiteral{t}}
+}
+
+func (a ArgReg) Evaluate() (int, error) {
+	switch a.Reg.TokenType {
+	case token.R0:
+		return 0, nil
+	case token.R1:
+		return 1, nil
+	case token.R2:
+		return 2, nil
+	case token.R3:
+		return 3, nil
+	default:
+		return 0, GenericTokenError{a.Reg, "unknown register while evaluating, please file a bug report"}
+	}
 }
 
 type ArgJump struct {
