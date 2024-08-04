@@ -123,6 +123,10 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileAlu(5)
 	case token.Rsh:
 		return s.compileAlu(6)
+	case token.St:
+		return s.compileMemory(6, 0b100)
+	case token.Ld:
+		return s.compileMemory(13, 0)
 	case token.Jump:
 		return s.compileJump()
 	default:
@@ -196,6 +200,22 @@ func (s *StmntInstr) compileMove() ([]byte, error) {
 	return insStandard(7, subOp, 4, imm, rsrc1, rdst), nil
 }
 
+func (s *StmntInstr) compileMemory(op int, subOp int) ([]byte, error) {
+	rA, err := s.Args[0].(ArgReg).Evaluate()
+	if err != nil {
+		return nil, err
+	}
+	rB, err := s.Args[1].(ArgReg).Evaluate()
+	if err != nil {
+		return nil, err
+	}
+	offset, err := s.Args[2].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	return insMemory(op, subOp, offset, rA, rB), nil
+}
+
 func (s *StmntInstr) compileJump() ([]byte, error) {
 	val, isReg, err := evalArgOrReg(s.Args[0], *s.labels)
 	if err != nil {
@@ -235,6 +255,15 @@ func insJump(op int, subOp int, jumpType int, sel int, arg int) []byte {
 	} else {
 		ins |= bitMask(arg, 2)
 	}
+	return byteInt(ins)
+}
+
+func insMemory(op int, subOp int, offset int, rA int, rB int) []byte {
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(subOp, 3) << 25
+	ins |= bitMask(offset, 11) << 10
+	ins |= bitMask(rB, 2) << 2
+	ins |= bitMask(rA, 2)
 	return byteInt(ins)
 }
 

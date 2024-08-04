@@ -24,13 +24,13 @@ finished:
 	.text
 	.global main
 main:
-// 	st r0, r3, 4*0
-// 	st r1, r3, 4*1
-// 	st r2, r3, 4*2
+	st r0, r3, 0
+	st r1, r3, 1
+	st r2, r3, 2
 
-// 	ld r2, r3, 4*2
-//  ld r1, r3, 4*1
-//  ld r0, r3, 4*0
+	ld r2, r3, 2
+	ld r1, r3, 1
+	ld r0, r3, 0
 	jump r2
 `
 	bin, err := asm.BuildFile(s, "quick_test.S")
