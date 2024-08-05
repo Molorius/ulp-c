@@ -79,9 +79,11 @@ const (
 	// instruction parameters
 
 	__jump_start
-	Ov // token for ov (overflow) parameter
 	Eq // token for eq (equals) parameter
+	Ov // token for ov (overflow) parameter
 	Lt // token for lt (less than) parameter
+	Le // token for le (less than or equal) parameter
+	Gt // token for gt (greather than) parameter
 	Ge // token for ge (greater than or equal) parameter
 	__jump_end
 
@@ -139,6 +141,8 @@ var toToken = map[string]Type{
 	"ov":        Ov,
 	"eq":        Eq,
 	"lt":        Lt,
+	"le":        Le,
+	"gt":        Gt,
 	"ge":        Ge,
 }
 var toString map[Type]string

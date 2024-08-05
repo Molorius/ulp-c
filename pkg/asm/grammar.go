@@ -79,7 +79,7 @@ func (s StmntInstr) String() string {
 }
 
 func (s StmntInstr) Size() int {
-	// 	TODO fix me because size may not be 4 for jump instructions
+	// 	TODO fix me because size may not be 4 for jumpr/jumps instructions
 	return 4
 }
 

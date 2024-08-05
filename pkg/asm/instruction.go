@@ -226,9 +226,16 @@ func (s *StmntInstr) compileJump() ([]byte, error) {
 		sel = 0 // immediate
 	}
 	jumpType := 0 // undonditional jump
-	// TODO: add other jump types
 	if len(s.Args) > 1 {
-		return nil, GenericTokenError{s.Instruction, "condition operand not supported yet"}
+		argToken := s.Args[1].(ArgJump).Arg
+		switch argToken.TokenType {
+		case token.Eq:
+			jumpType = 1
+		case token.Ov:
+			jumpType = 2
+		default:
+			return nil, GenericTokenError{argToken, "unsupported jump type for jump instruction"}
+		}
 	}
 	op := 8
 	subOp := 0
