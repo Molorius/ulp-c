@@ -34,6 +34,7 @@ main:
 	jump r2
 	.int 0, 1, 2, main+1
 	.int 0x1234
+	jumpr . - 127, 0xFFFF, le
 `
 	bin, err := asm.BuildFile(s, "quick_test.S")
 	if err != nil {

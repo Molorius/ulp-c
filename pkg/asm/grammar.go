@@ -79,8 +79,17 @@ func (s StmntInstr) String() string {
 }
 
 func (s StmntInstr) Size() int {
-	// 	TODO fix me because size may not be 4 for jumpr/jumps instructions
-	return 4
+	switch s.Instruction.TokenType {
+	case token.Jumpr:
+		switch s.Args[2].(ArgJump).Arg.TokenType {
+		case token.Eq:
+			return 8
+		default:
+			return 4
+		}
+	default:
+		return 4
+	}
 }
 
 type StmntLabel struct {

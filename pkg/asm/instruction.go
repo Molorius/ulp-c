@@ -129,6 +129,8 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileMemory(13, 0)
 	case token.Jump:
 		return s.compileJump()
+	case token.Jumpr:
+		return s.compileJumpr()
 	default:
 		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
 	}
@@ -242,6 +244,62 @@ func (s *StmntInstr) compileJump() ([]byte, error) {
 	return insJump(op, subOp, jumpType, sel, val), nil
 }
 
+func (s *StmntInstr) compileJumpr() ([]byte, error) {
+	dest, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	l, ok := (*s.labels)["."]
+	if !ok {
+		return nil, GenericTokenError{s.Instruction, "the \"Here\" token \".\" not set to get offset, please file a bug report"}
+	}
+	step := dest - (l.Value / 4)
+	stepMax := 0b1111111
+	if step > stepMax {
+		return nil, GenericTokenError{s.Instruction, fmt.Sprintf("step %d is outside the maximum of %d", step, stepMax)}
+	}
+	if step < -stepMax {
+		return nil, GenericTokenError{s.Instruction, fmt.Sprintf("step %d is outside the minimum of %d", step, -stepMax)}
+	}
+	if step < 0 {
+		step = -step
+		step |= 1 << 7
+	}
+	threshold, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
+	threshold &= 0xFFFF // mask it off for later
+	if err != nil {
+		return nil, err
+	}
+	argToken := s.Args[2].(ArgJump).Arg
+	ge := 1
+	lt := 0
+	switch argToken.TokenType {
+	case token.Eq:
+		if threshold == 0xFFFF { // rollover causes problems, only check ge
+			// we will mess up addresses if we return 1 instruction so double it,
+			// we can't check this earlier because the threshold may use a label
+			return append(insJumpr(step, ge, threshold), insJumpr(step, ge, threshold)...), nil
+		}
+		return append(insJumpr(2, ge, threshold+1), insJumpr(step, ge, threshold)...), nil
+	case token.Lt:
+		return insJumpr(step, lt, threshold), nil
+	case token.Le:
+		if threshold == 0xFFFF { // always true
+			return insJumpr(step, ge, 0), nil
+		}
+		return insJumpr(step, lt, threshold+1), nil
+	case token.Gt:
+		if threshold == 0xFFFF { // always false
+			return insJumpr(step, lt, 0), nil
+		}
+		return insJumpr(step, ge, threshold+1), nil
+	case token.Ge:
+		return insJumpr(step, ge, threshold), nil
+	default:
+		return nil, GenericTokenError{argToken, "unsupported jump type for jumpr instruction"}
+	}
+}
+
 func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte {
 	ins := bitMask(op, 4) << 28
 	ins |= bitMask(subOp, 3) << 25
@@ -271,6 +329,17 @@ func insMemory(op int, subOp int, offset int, rA int, rB int) []byte {
 	ins |= bitMask(offset, 11) << 10
 	ins |= bitMask(rB, 2) << 2
 	ins |= bitMask(rA, 2)
+	return byteInt(ins)
+}
+
+func insJumpr(step int, cond int, threshold int) []byte {
+	op := 8
+	subOp := 1
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(subOp, 3) << 25
+	ins |= bitMask(step, 8) << 17
+	ins |= bitMask(cond, 1) << 16
+	ins |= bitMask(threshold, 16)
 	return byteInt(ins)
 }
 
