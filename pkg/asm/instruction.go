@@ -276,9 +276,9 @@ func (s *StmntInstr) compileJumpr() ([]byte, error) {
 	switch argToken.TokenType {
 	case token.Eq:
 		if threshold == 0xFFFF { // rollover causes problems, only check ge
-			// we will mess up addresses if we return 1 instruction so double it,
-			// we can't check this earlier because the threshold may use a label
-			return append(insJumpr(step, ge, threshold), insJumpr(step, ge, threshold)...), nil
+			// we will mess up addresses if we return 1 instruction so instead
+			// use a slightly faster 2-instruction sequence
+			return append(insJumpr(2, lt, 0xFFFF), insJumpr(step, ge, 0xFFFF)...), nil
 		}
 		return append(insJumpr(2, ge, threshold+1), insJumpr(step, ge, threshold)...), nil
 	case token.Lt:
