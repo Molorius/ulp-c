@@ -8,9 +8,45 @@ ulp-asm currently only supports one file.
 
 ulp-asm currently only supports the original ESP32.
 
+# Directives
+
+* `.global symbol`
+* `.int`
+* `.boot`, code here will be placed before the .text section
+* `.text`
+* `.data`
+* `.bss`
+
+# Instructions
+* add
+* sub
+* and
+* or
+* move
+* lsh
+* rsh
+* st
+* ld
+* jump
+* jumpr
+* jumps
+
 # Differences
 
 There are several differences between ulp-asm and esp32ulp-elf-as.
+
+## Number labels
+
+esp32ulp-elf-as can use number labels such as the following:
+```
+  0:
+add r0, r0, 10
+jump 0b, ov
+```
+Where the `jump` will go back to the nearest `0` label on overload.
+
+ulp-asm does not currently support this.
+
 
 ## Case Sensitivity
 
@@ -32,7 +68,7 @@ to different values.
 
 ## ld instruction
 
-esp32ulp-elf-as divides the offset by 4, this does not.
+esp32ulp-elf-as divides the offset by 4, ulp-asm does not.
 
 esp32ulp-elf-as:
 ```
@@ -51,7 +87,7 @@ ld r3, r3, 5
 ```
 
 ## st instruction
-esp32ulp-elf-as divides the offset by 4, this does not.
+esp32ulp-elf-as divides the offset by 4, ulp-asm does not.
 
 esp32ulp-elf-as:
 ```
@@ -126,7 +162,7 @@ esp32ulp-elf-as will compile the less than or equal condition `jumpr target, thr
 jumpr target, threshold+1, lt
 ```
 
-ulp-asm does the same unless threshold == 0xFFFF, in which case it will use:
+Which is fine unless threshold == 0xFFFF. ulp-asm does the same unless threshold == 0xFFFF, in which case it will use:
 ```
 jumpr target, 0, ge // always jump
 ```
@@ -138,7 +174,7 @@ esp32ulp-elf-as will compile the greater than condition `jumpr target, threshold
 jumpr target, threshold+1, ge
 ```
 
-ulp-asm does the same unless threshold == 0xFFFF, in which case it will use:
+Which is fine unless threshold == 0xFFFF. ulp-asm does the same unless threshold == 0xFFFF, in which case it will use:
 ```
 jumpr target, 0, lt // never jump
 ```
@@ -151,7 +187,7 @@ jumpr . + 8, threshold+1, ge // esp32ulp-elf-as likes to divide by 4...
 jumpr target, threshold, ge
 ```
 
-ulp-asm does the same unless threshold == 0xFFFF, in which case it will use:
+Which is fine unless threshold == 0xFFFF. ulp-asm does the same unless threshold == 0xFFFF, in which case it will use:
 ```
 jumpr . + 2, 0xFFFF, lt
 jumpr target, 0xFFFF, ge
@@ -166,6 +202,32 @@ But the first fix has a higher probability on average of executing 1 instruction
 
 Also note that it uses 2 instructions because it needs to calculate the address of labels
 before doing math, which the threshold may use.
+
+## jumps instruction
+
+Note that jumps is an unsigned comparison.
+
+Also note that the esp32ulp-elf-as jumps implementation uses the
+same inconsistent address vs offset as its jumpr implementation.
+ulp-asm takes in a hard address, the same as its jumpr implementation.
+
+-----
+
+esp32ulp-elf-as will compile the equals condition `jumps target, threshold, gt` to:
+```
+jumps . + 8, threshold, le // esp32ulp-elf-as likes to divide by 4...
+jumps target, threshold, ge
+```
+
+This is correct but the same logic can be done in one instruction. ulp-asm will compile this to:
+```
+jumps target, threshold+1, ge
+```
+unless threshold == 0xFF, instead it will use:
+```
+jumps target, 0, lt // never jump
+```
+
 
 # Grammar
 

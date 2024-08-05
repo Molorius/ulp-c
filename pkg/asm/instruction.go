@@ -1,6 +1,7 @@
 package asm
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Molorius/ulp-c/pkg/asm/token"
@@ -131,6 +132,8 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileJump()
 	case token.Jumpr:
 		return s.compileJumpr()
+	case token.Jumps:
+		return s.compileJumps()
 	default:
 		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
 	}
@@ -245,42 +248,30 @@ func (s *StmntInstr) compileJump() ([]byte, error) {
 }
 
 func (s *StmntInstr) compileJumpr() ([]byte, error) {
-	dest, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	step, threshold, argToken, err := s.argsJumpRS()
 	if err != nil {
 		return nil, err
 	}
-	l, ok := (*s.labels)["."]
-	if !ok {
-		return nil, GenericTokenError{s.Instruction, "the \"Here\" token \".\" not set to get offset, please file a bug report"}
+	err = s.stepValidate(step)
+	if err != nil {
+		return nil, err
 	}
-	step := dest - (l.Value / 4)
-	stepMax := 0b1111111
-	if step > stepMax {
-		return nil, GenericTokenError{s.Instruction, fmt.Sprintf("step %d is outside the maximum of %d", step, stepMax)}
-	}
-	if step < -stepMax {
-		return nil, GenericTokenError{s.Instruction, fmt.Sprintf("step %d is outside the minimum of %d", step, -stepMax)}
-	}
-	if step < 0 {
-		step = -step
-		step |= 1 << 7
-	}
-	threshold, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
 	threshold &= 0xFFFF // mask it off for later
-	if err != nil {
-		return nil, err
-	}
-	argToken := s.Args[2].(ArgJump).Arg
 	ge := 1
 	lt := 0
 	switch argToken.TokenType {
 	case token.Eq:
+		err = s.stepValidate(step - 1)
+		if err != nil {
+			return nil, errors.Join(GenericTokenError{argToken, "step-1 outside of bounds for this condition"}, err)
+		}
 		if threshold == 0xFFFF { // rollover causes problems, only check ge
 			// we will mess up addresses if we return 1 instruction so instead
 			// use a slightly faster 2-instruction sequence
-			return append(insJumpr(2, lt, 0xFFFF), insJumpr(step, ge, 0xFFFF)...), nil
+			return append(insJumpr(2, lt, 0xFFFF), insJumpr(step-1, ge, 0xFFFF)...), nil
 		}
-		return append(insJumpr(2, ge, threshold+1), insJumpr(step, ge, threshold)...), nil
+		// `step-1` because we need to account for the first instruction's offset
+		return append(insJumpr(2, ge, threshold+1), insJumpr(step-1, ge, threshold)...), nil
 	case token.Lt:
 		return insJumpr(step, lt, threshold), nil
 	case token.Le:
@@ -295,6 +286,80 @@ func (s *StmntInstr) compileJumpr() ([]byte, error) {
 		return insJumpr(step, ge, threshold+1), nil
 	case token.Ge:
 		return insJumpr(step, ge, threshold), nil
+	default:
+		return nil, GenericTokenError{argToken, "unsupported jump type for jumpr instruction"}
+	}
+}
+
+func stepFix(step int) int {
+	if step < 0 {
+		step = -step
+		step |= 1 << 7
+	}
+	return step
+}
+
+func (s *StmntInstr) argsJumpRS() (int, int, Token, error) {
+	dest, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return 0, 0, Token{}, err
+	}
+	l, ok := (*s.labels)["."]
+	if !ok {
+		return 0, 0, Token{}, GenericTokenError{s.Instruction, "the \"Here\" token \".\" not set to get offset, please file a bug report"}
+	}
+	step := dest - (l.Value / 4)
+	threshold, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return 0, 0, Token{}, err
+	}
+	argToken := s.Args[2].(ArgJump).Arg
+	return step, threshold, argToken, nil
+}
+
+func (s *StmntInstr) stepValidate(step int) error {
+	stepMax := 0b1111111
+	if step > stepMax {
+		return GenericTokenError{s.Instruction, fmt.Sprintf("step of %d is outside the maximum of %d", step, stepMax)}
+	}
+	if step < -stepMax {
+		return GenericTokenError{s.Instruction, fmt.Sprintf("step of %d is outside the minimum of %d", step, -stepMax)}
+	}
+	return nil
+}
+
+func (s *StmntInstr) compileJumps() ([]byte, error) {
+	step, threshold, argToken, err := s.argsJumpRS()
+	if err != nil {
+		return nil, err
+	}
+	err = s.stepValidate(step)
+	if err != nil {
+		return nil, err
+	}
+	threshold &= 0xFF // mask it off for later
+	le := 2
+	lt := 0
+	ge := 1
+	switch argToken.TokenType {
+	case token.Eq:
+		err = s.stepValidate(step - 1)
+		if err != nil {
+			return nil, errors.Join(GenericTokenError{argToken, "step-1 outside of bounds for this condition"}, err)
+		}
+		// `step-1` because we need to account for the first instruction's offset
+		return append(insJumps(2, lt, threshold), insJumps(step-1, le, threshold)...), nil
+	case token.Lt:
+		return insJumps(step, lt, threshold), nil
+	case token.Le:
+		return insJumps(step, le, threshold), nil
+	case token.Gt:
+		if threshold == 0xFF {
+			return insJumps(step, lt, 0), nil // never jump
+		}
+		return insJumps(step, ge, threshold+1), nil
+	case token.Ge:
+		return insJumps(step, ge, threshold), nil
 	default:
 		return nil, GenericTokenError{argToken, "unsupported jump type for jumpr instruction"}
 	}
@@ -335,11 +400,24 @@ func insMemory(op int, subOp int, offset int, rA int, rB int) []byte {
 func insJumpr(step int, cond int, threshold int) []byte {
 	op := 8
 	subOp := 1
+	step = stepFix(step)
 	ins := bitMask(op, 4) << 28
 	ins |= bitMask(subOp, 3) << 25
 	ins |= bitMask(step, 8) << 17
 	ins |= bitMask(cond, 1) << 16
 	ins |= bitMask(threshold, 16)
+	return byteInt(ins)
+}
+
+func insJumps(step int, cond int, threshold int) []byte {
+	op := 8
+	subOp := 2
+	step = stepFix(step)
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(subOp, 3) << 25
+	ins |= bitMask(step, 8) << 17
+	ins |= bitMask(cond, 2) << 15
+	ins |= bitMask(threshold, 8)
 	return byteInt(ins)
 }
 

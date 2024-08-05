@@ -80,7 +80,7 @@ func (s StmntInstr) String() string {
 
 func (s StmntInstr) Size() int {
 	switch s.Instruction.TokenType {
-	case token.Jumpr:
+	case token.Jumpr, token.Jumps:
 		switch s.Args[2].(ArgJump).Arg.TokenType {
 		case token.Eq:
 			return 8
