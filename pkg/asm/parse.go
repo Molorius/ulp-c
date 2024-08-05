@@ -78,14 +78,38 @@ func (p *parser) directive() (Stmnt, error) {
 	if !t.TokenType.IsDirective() {
 		return nil, GenericTokenError{t, "compiler bug in parser.directive(), please file a bug report"}
 	}
-	if t.TokenType == token.Global {
+	switch t.TokenType {
+	case token.Global:
 		if p.match(token.Identifier) {
 			s := StmntGlobal{Label: p.previous()}
 			return s, nil
 		}
 		return nil, ExpectedTokenError{token.Identifier, p.next()}
+	case token.Int:
+		return p.directiveInt(t)
+	default:
+		return StmntDirective{t}, nil
 	}
-	return StmntDirective{t}, nil
+}
+
+func (p *parser) directiveInt(t Token) (Stmnt, error) {
+	args, err := p.arguments()
+	if err != nil {
+		return nil, errors.Join(GenericTokenError{t, "could not parse arguments for .int"}, err)
+	}
+	if len(args) == 0 {
+		return nil, GenericTokenError{t, "expected at least 1 argument"}
+	}
+	argsExpr := make([]ArgExpr, len(args))
+	for i := range args {
+		switch a := args[i].(type) {
+		case ArgExpr:
+			argsExpr[i] = a
+		default:
+			return nil, GenericTokenError{t, fmt.Sprintf("expected an expression on argument %d", i)}
+		}
+	}
+	return StmntInt{argsExpr}, nil
 }
 
 func (p *parser) instruction() (Stmnt, error) {

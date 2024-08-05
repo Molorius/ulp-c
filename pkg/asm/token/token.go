@@ -28,6 +28,7 @@ const (
 	Macro    // token for .macro
 	EndMacro // token for .endmacro
 	Global   // token for .global
+	Int      // token for .int
 
 	// sections
 
@@ -101,6 +102,7 @@ var toToken = map[string]Type{
 	".macro":    Macro,
 	".endmacro": EndMacro,
 	".global":   Global,
+	".int":      Int,
 	".":         Here,
 	".boot":     Boot,
 	".text":     Text,

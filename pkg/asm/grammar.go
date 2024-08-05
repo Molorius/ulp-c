@@ -42,6 +42,32 @@ func (s StmntGlobal) String() string {
 	return fmt.Sprintf(".global(%s)", s.Label)
 }
 
+type StmntInt struct {
+	Args []ArgExpr
+}
+
+func (s StmntInt) Size() int {
+	return len(s.Args) * 4
+}
+
+func (s StmntInt) Compile(labels map[string]*Label) ([]byte, error) {
+	errs := error(nil)
+	out := make([]byte, 0)
+	for _, a := range s.Args {
+		val, err := a.Expr.Evaluate(labels)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		}
+		b := byteInt(val)
+		out = append(out, b...)
+	}
+	return out, errs
+}
+
+func (s StmntInt) String() string {
+	return fmt.Sprintf("int{%s}", s.Args)
+}
+
 type StmntInstr struct {
 	Instruction Token
 	Args        []Arg
@@ -53,6 +79,7 @@ func (s StmntInstr) String() string {
 }
 
 func (s StmntInstr) Size() int {
+	// 	TODO fix me because size may not be 4 for jump instructions
 	return 4
 }
 
