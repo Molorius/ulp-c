@@ -40,6 +40,10 @@ main:
 	stage_rst
 	stage_inc 5
 	stage_dec 4
+	halt
+	wake
+	sleep 0
+	wait 10
 `
 	bin, err := asm.BuildFile(s, "quick_test.S")
 	if err != nil {

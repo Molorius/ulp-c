@@ -33,6 +33,19 @@ ulp-asm currently only supports the original ESP32.
 * jump
 * jumpr
 * jumps
+* halt
+* wake
+* sleep
+* wait
+
+# Comments
+
+The following comment types are supported:
+```
+// I am a comment until end of line
+# I am also a comment until end of line
+/* I am an inline comment */
+```
 
 # Differences
 

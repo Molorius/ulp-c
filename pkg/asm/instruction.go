@@ -140,6 +140,14 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileJumpr()
 	case token.Jumps:
 		return s.compileJumps()
+	case token.Halt:
+		return s.compileNoParams(11, 0, 0)
+	case token.Wake:
+		return s.compileNoParams(9, 0, 1)
+	case token.Sleep:
+		return s.compileSingleParam(9, 1)
+	case token.Wait:
+		return s.compileSingleParam(4, 0)
 	default:
 		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
 	}
@@ -383,6 +391,18 @@ func (s *StmntInstr) compileJumps() ([]byte, error) {
 	}
 }
 
+func (s *StmntInstr) compileNoParams(op int, subOp int, param int) ([]byte, error) {
+	return insSingleParam(op, subOp, param), nil
+}
+
+func (s *StmntInstr) compileSingleParam(op int, subOp int) ([]byte, error) {
+	imm, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	return insSingleParam(op, subOp, imm), nil
+}
+
 func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte {
 	ins := bitMask(op, 4) << 28
 	ins |= bitMask(subOp, 3) << 25
@@ -446,6 +466,13 @@ func insJumps(step int, cond int, threshold int) []byte {
 	ins |= bitMask(step, 8) << 17
 	ins |= bitMask(cond, 2) << 15
 	ins |= bitMask(threshold, 8)
+	return byteInt(ins)
+}
+
+func insSingleParam(op int, subOp int, param int) []byte {
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(subOp, 3) << 25
+	ins |= bitMask(param, 16)
 	return byteInt(ins)
 }
 
