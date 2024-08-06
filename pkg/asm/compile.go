@@ -33,25 +33,29 @@ type Compiler struct {
 	Labels         map[string]*Label
 	preLabels      map[string]int // these contain offsets relative to the section
 	Boot           Section
+	BootData       Section
 	Text           Section
 	Data           Section
 	Bss            Section
+	Stack          Section // data not placed here
 	CurrentSection *Section
 }
 
-func (c *Compiler) Compile(program []Stmnt) ([]byte, error) {
+func (c *Compiler) Compile(program []Stmnt, reservedBytes int) ([]byte, error) {
 	c.program = program
 	c.Labels = make(map[string]*Label)
 	c.preLabels = make(map[string]int)
 	c.Boot = Section{}
+	c.BootData = Section{}
 	c.Text = Section{}
 	c.Data = Section{}
 	c.Bss = Section{}
+	c.Stack = Section{}
 	err := c.genPreLabels()
 	if err != nil {
 		return nil, err
 	}
-	err = c.genLabels()
+	err = c.genLabels(reservedBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -93,12 +97,21 @@ func (c *Compiler) genPreLabels() error {
 	return nil
 }
 
-func (c *Compiler) genLabels() error {
+func (c *Compiler) genLabels(reservedBytes int) error {
 	// resolve section offsets
 	c.Boot.Offset = 0
 	c.Text.Offset = c.Boot.Offset + c.Boot.Size
-	c.Data.Offset = c.Text.Offset + c.Text.Size
+	c.BootData.Offset = c.Text.Offset + c.Text.Size
+	c.Data.Offset = c.BootData.Offset + c.BootData.Size
 	c.Bss.Offset = c.Data.Offset + c.Data.Size
+	// data is never placed in stack, calculate remaining memory
+	c.Stack.Offset = c.Bss.Offset + c.Bss.Size
+	c.Stack.Size = reservedBytes - c.Stack.Offset
+	if c.Stack.Size < 0 {
+		total := c.Stack.Offset
+		return fmt.Errorf("overflowing the %d reserved bytes: .boot=%d .boot.data=%d .text=%d .data=%d .bss=%d total=%d",
+			reservedBytes, c.Boot.Size, c.BootData.Size, c.Text.Size, c.Data.Size, c.Bss.Size, total)
+	}
 
 	// resolve label offsets
 	for name, offset := range c.preLabels {
@@ -122,6 +135,14 @@ func (c *Compiler) genLabels() error {
 		Name:  "__text_end",
 		Value: c.Text.Offset + c.Text.Size,
 	}
+	c.Labels["__boot_data_start"] = &Label{
+		Name:  "__boot_data_start",
+		Value: c.BootData.Offset,
+	}
+	c.Labels["__boot_data_end"] = &Label{
+		Name:  "__boot_data_end",
+		Value: c.BootData.Offset + c.BootData.Size,
+	}
 	c.Labels["__data_start"] = &Label{
 		Name:  "__data_start",
 		Value: c.Data.Offset,
@@ -138,6 +159,15 @@ func (c *Compiler) genLabels() error {
 		Name:  "__bss_end",
 		Value: c.Bss.Offset + c.Bss.Size,
 	}
+	c.Labels["__stack_start"] = &Label{
+		Name:  "__stack_start",
+		Value: c.Stack.Offset,
+	}
+	c.Labels["__stack_end"] = &Label{
+		Name:  "__stack_end",
+		Value: c.Stack.Offset + c.Stack.Size,
+	}
+
 	return nil
 }
 
@@ -195,6 +225,10 @@ func (c *Compiler) validateSections() error {
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
+	err = c.BootData.Validate(".boot.data")
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
 	err = c.Data.Validate(".data")
 	if err != nil {
 		errs = errors.Join(errs, err)
@@ -219,6 +253,8 @@ func (c *Compiler) setSection(t token.Type) {
 		c.CurrentSection = &c.Boot
 	case token.Text:
 		c.CurrentSection = &c.Text
+	case token.BootData:
+		c.CurrentSection = &c.BootData
 	case token.Data:
 		c.CurrentSection = &c.Data
 	case token.Bss:
@@ -235,8 +271,8 @@ func (c *Compiler) buildBinary() ([]byte, error) {
 	// the section will be loaded at 0 within ram though
 	textAddr := 12
 	textSize := c.Boot.Size + c.Text.Size
-	dataSize := c.Data.Size
-	bssSize := c.Bss.Size
+	dataSize := c.BootData.Size + c.Data.Size
+	bssSize := c.Bss.Size + c.Stack.Size
 	b = append(b, byteInt(magic)...)
 	b = append(b, byteShort(textAddr)...)
 	b = append(b, byteShort(textSize)...)
@@ -246,8 +282,10 @@ func (c *Compiler) buildBinary() ([]byte, error) {
 	// append the rest
 	b = append(b, c.Boot.Bin...)
 	b = append(b, c.Text.Bin...)
+	b = append(b, c.BootData.Bin...)
 	b = append(b, c.Data.Bin...)
 	// b = append(b, c.Bss.Bin...)
+	// b = append(b, c.Stack.Bin...) // data not actually placed here
 
 	return b, nil
 }

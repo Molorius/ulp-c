@@ -21,6 +21,14 @@ boot:
 finished:
 	jump finished
 
+.data
+.int __stack_start
+.int __stack_end
+
+	.boot.data
+.int 0xFF
+.int 0
+
 	.text
 	.global main
 main:
@@ -45,7 +53,8 @@ main:
 	sleep 0
 	wait 10
 `
-	bin, err := asm.BuildFile(s, "quick_test.S")
+	reservedBytes := 8176
+	bin, err := asm.BuildFile(s, "quick_test.S", reservedBytes)
 	if err != nil {
 		fmt.Println(err)
 		return

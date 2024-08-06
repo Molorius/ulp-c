@@ -12,7 +12,8 @@ ulp-asm currently only supports the original ESP32.
 
 * `.global symbol`
 * `.int`
-* `.boot`, code here will be placed before the .text section
+* `.boot`, code here will be placed at the start of the .text section
+* `.boot.data`, code here will be placed at the start of the .data section
 * `.text`
 * `.data`
 * `.bss`
@@ -46,6 +47,19 @@ The following comment types are supported:
 # I am also a comment until end of line
 /* I am an inline comment */
 ```
+
+# Sections
+
+The ULP binary contains a header with information about the `.text`, `.data`,
+and `.bss` sections. These will be referred to as `.header.text`, `.header.data`, and `.header.bss` respectively in this document.
+
+This assembler has the `.boot` and `.text` directives. These will be added to the `.header.text` section in order. The label "__boot_start" is put at the start of the `.boot` section, "__boot_end" at the end. The label "__text_start" is put at the start of the `.text` section, "__text_end" at the end.
+
+This assembler has the `.boot.data` and `.data` directives. These will be added to the `.header.data` section in order. The label "__boot_data_start" is put at the start of the `.boot.data` section, "__boot_data_end" at the end. The label "__data_start" is put at the start of the `.data` section, "__data_end" at the end.
+
+This assembler uses the `.bss` directive to put data in the `.header.bss` section. The label "__bss_start" is placed at the start, "__bss_end" at the end.
+
+This assembler allocates the remainder of the reserved space for a stack at the end of the `.header.bss` section. The label "__stack_start" is placed at the start, "__stack_end" at the end.
 
 # Differences
 
@@ -252,7 +266,7 @@ The following is the grammar implemented:
 ```
 ident   : [_.a-zA-Z0-9]*
 label   : ident ":"
-section : ".boot" | ".text" | ".data" | ".bss"
+section : ".boot" | ".boot.data" | ".text" | ".data" | ".bss"
 global  : ".global" ident
 int : ".int" primary ( "," primary )*
 directive : ( section | global | int )

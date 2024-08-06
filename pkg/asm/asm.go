@@ -8,7 +8,7 @@ import (
 type Assembler struct {
 }
 
-func (asm *Assembler) BuildFile(content string, name string) ([]byte, error) {
+func (asm *Assembler) BuildFile(content string, name string, reservedBytes int) ([]byte, error) {
 	s := scanner{}
 	tokens, err := s.scanFile(content, name)
 	if err != nil {
@@ -22,7 +22,7 @@ func (asm *Assembler) BuildFile(content string, name string) ([]byte, error) {
 	}
 	fmt.Printf("statements: %s\n", stmnts)
 	c := Compiler{}
-	bin, err := c.Compile(stmnts)
+	bin, err := c.Compile(stmnts, reservedBytes)
 	if err != nil {
 		return nil, err
 	}
