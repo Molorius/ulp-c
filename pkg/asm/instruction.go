@@ -148,6 +148,8 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileSingleParam(9, 1)
 	case token.Wait:
 		return s.compileSingleParam(4, 0)
+	case token.Adc:
+		return s.compileAdc()
 	default:
 		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
 	}
@@ -403,6 +405,22 @@ func (s *StmntInstr) compileSingleParam(op int, subOp int) ([]byte, error) {
 	return insSingleParam(op, subOp, imm), nil
 }
 
+func (s *StmntInstr) compileAdc() ([]byte, error) {
+	rdst, err := s.Args[0].(ArgReg).Evaluate()
+	if err != nil {
+		return nil, err
+	}
+	sarSel, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	mux, err := s.Args[2].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	return insAdc(rdst, sarSel, mux), nil
+}
+
 func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte {
 	ins := bitMask(op, 4) << 28
 	ins |= bitMask(subOp, 3) << 25
@@ -473,6 +491,15 @@ func insSingleParam(op int, subOp int, param int) []byte {
 	ins := bitMask(op, 4) << 28
 	ins |= bitMask(subOp, 3) << 25
 	ins |= bitMask(param, 16)
+	return byteInt(ins)
+}
+
+func insAdc(rdst int, sarSel int, mux int) []byte {
+	op := 5
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(sarSel, 1) << 6
+	ins |= bitMask(mux, 4) << 2
+	ins |= bitMask(rdst, 2)
 	return byteInt(ins)
 }
 

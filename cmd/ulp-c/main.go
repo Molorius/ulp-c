@@ -52,6 +52,7 @@ main:
 	wake
 	sleep 0
 	wait 10
+	adc r2, 1, 7
 `
 	reservedBytes := 8176
 	bin, err := asm.BuildFile(s, "quick_test.S", reservedBytes)

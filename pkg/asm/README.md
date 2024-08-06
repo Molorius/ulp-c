@@ -38,6 +38,7 @@ ulp-asm currently only supports the original ESP32.
 * wake
 * sleep
 * wait
+* adc
 
 # Comments
 
