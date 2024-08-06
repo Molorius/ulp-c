@@ -124,6 +124,12 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileAlu(5)
 	case token.Rsh:
 		return s.compileAlu(6)
+	case token.StageInc:
+		return s.compileStage(0)
+	case token.StageDec:
+		return s.compileStage(1)
+	case token.StageRst:
+		return s.compileStage(2)
 	case token.St:
 		return s.compileMemory(6, 0b100)
 	case token.Ld:
@@ -203,6 +209,18 @@ func (s *StmntInstr) compileMove() ([]byte, error) {
 	}
 	imm = bitMask(imm, 16)
 	return insStandard(7, subOp, 4, imm, rsrc1, rdst), nil
+}
+
+func (s *StmntInstr) compileStage(aluSel int) ([]byte, error) {
+	imm := 0
+	err := error(nil)
+	if aluSel != 2 {
+		imm, err = s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return insStage(aluSel, imm), nil
 }
 
 func (s *StmntInstr) compileMemory(op int, subOp int) ([]byte, error) {
@@ -372,6 +390,16 @@ func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte 
 	ins |= bitMask(imm, 17) << 4
 	ins |= bitMask(rA, 2) << 2
 	ins |= bitMask(rB, 2)
+	return byteInt(ins)
+}
+
+func insStage(aluSel int, imm int) []byte {
+	op := 7
+	subOp := 2
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(subOp, 3) << 25
+	ins |= bitMask(aluSel, 4) << 21
+	ins |= bitMask(imm, 8) << 4
 	return byteInt(ins)
 }
 

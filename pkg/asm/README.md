@@ -25,6 +25,9 @@ ulp-asm currently only supports the original ESP32.
 * move
 * lsh
 * rsh
+* stage_rst
+* stage_inc
+* stage_dec
 * st
 * ld
 * jump

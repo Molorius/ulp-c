@@ -37,6 +37,9 @@ main:
 	jumpr . - 126, 0xFFFF, eq
 	jumps main, 123, eq
 	jumps main, 0xFE, gt
+	stage_rst
+	stage_inc 5
+	stage_dec 4
 `
 	bin, err := asm.BuildFile(s, "quick_test.S")
 	if err != nil {
