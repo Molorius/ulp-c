@@ -150,6 +150,10 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileSingleParam(4, 0)
 	case token.Adc:
 		return s.compileAdc()
+	case token.I2cRd:
+		return s.compileI2cRd()
+	case token.I2cWr:
+		return s.compileI2cWr()
 	default:
 		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
 	}
@@ -421,6 +425,53 @@ func (s *StmntInstr) compileAdc() ([]byte, error) {
 	return insAdc(rdst, sarSel, mux), nil
 }
 
+func (s *StmntInstr) compileI2cRd() ([]byte, error) {
+	subAddr, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	high, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	low, err := s.Args[2].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	i2cSel, err := s.Args[3].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	data := 0
+	rw := 0
+	return insI2c(rw, i2cSel, high, low, data, subAddr), nil
+}
+
+func (s *StmntInstr) compileI2cWr() ([]byte, error) {
+	subAddr, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	data, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	high, err := s.Args[2].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	low, err := s.Args[3].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	i2cSel, err := s.Args[4].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	rw := 1
+	return insI2c(rw, i2cSel, high, low, data, subAddr), nil
+}
+
 func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte {
 	ins := bitMask(op, 4) << 28
 	ins |= bitMask(subOp, 3) << 25
@@ -500,6 +551,18 @@ func insAdc(rdst int, sarSel int, mux int) []byte {
 	ins |= bitMask(sarSel, 1) << 6
 	ins |= bitMask(mux, 4) << 2
 	ins |= bitMask(rdst, 2)
+	return byteInt(ins)
+}
+
+func insI2c(rw int, i2cSel int, high int, low int, data int, subAddr int) []byte {
+	op := 3
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(rw, 1) << 27
+	ins |= bitMask(i2cSel, 4) << 22
+	ins |= bitMask(high, 3) << 19
+	ins |= bitMask(low, 3) << 16
+	ins |= bitMask(data, 8) << 8
+	ins |= bitMask(subAddr, 8)
 	return byteInt(ins)
 }
 
