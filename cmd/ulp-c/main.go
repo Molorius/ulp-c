@@ -55,6 +55,8 @@ main:
 	adc r2, 1, 7
 	i2c_rd 0x10, 7, 0, 2
 	i2c_wr 0x11, 0x48, 7, 0, 3
+	reg_rd 0x120, 7, 4
+	reg_wr 0x121, 9, 5, 0b11
 `
 	reservedBytes := 8176
 	bin, err := asm.BuildFile(s, "quick_test.S", reservedBytes)

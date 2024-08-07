@@ -41,6 +41,8 @@ ulp-asm currently only supports the original ESP32.
 * adc
 * i2c_rd
 * i2c_wr
+* reg_rd
+* reg_wr
 
 # Comments
 

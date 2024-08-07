@@ -154,6 +154,10 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileI2cRd()
 	case token.I2cWr:
 		return s.compileI2cWr()
+	case token.RegRd:
+		return s.compileRegRd()
+	case token.RegWr:
+		return s.compileRegWr()
 	default:
 		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
 	}
@@ -472,6 +476,45 @@ func (s *StmntInstr) compileI2cWr() ([]byte, error) {
 	return insI2c(rw, i2cSel, high, low, data, subAddr), nil
 }
 
+func (s *StmntInstr) compileRegRd() ([]byte, error) {
+	addr, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	high, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	low, err := s.Args[2].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	op := 2
+	data := 0
+	return insReg(op, high, low, data, addr), nil
+}
+
+func (s *StmntInstr) compileRegWr() ([]byte, error) {
+	addr, err := s.Args[0].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	high, err := s.Args[1].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	low, err := s.Args[2].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	data, err := s.Args[3].(ArgExpr).Expr.Evaluate(*s.labels)
+	if err != nil {
+		return nil, err
+	}
+	op := 1
+	return insReg(op, high, low, data, addr), nil
+}
+
 func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte {
 	ins := bitMask(op, 4) << 28
 	ins |= bitMask(subOp, 3) << 25
@@ -563,6 +606,15 @@ func insI2c(rw int, i2cSel int, high int, low int, data int, subAddr int) []byte
 	ins |= bitMask(low, 3) << 16
 	ins |= bitMask(data, 8) << 8
 	ins |= bitMask(subAddr, 8)
+	return byteInt(ins)
+}
+
+func insReg(op int, high int, low int, data int, addr int) []byte {
+	ins := bitMask(op, 4) << 28
+	ins |= bitMask(high, 5) << 23
+	ins |= bitMask(low, 5) << 18
+	ins |= bitMask(data, 8) << 10
+	ins |= bitMask(addr, 10)
 	return byteInt(ins)
 }
 
