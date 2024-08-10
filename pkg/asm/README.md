@@ -1,6 +1,8 @@
 
 # ulp-asm
 
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
+
 ulp-asm is an assembler for the ESP32 ULP coprocessor.
 Note that this converts assembly directly into the final binary.
 
