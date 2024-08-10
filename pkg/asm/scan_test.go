@@ -153,10 +153,10 @@ func Test_scanner_scanFile(t *testing.T) {
 		},
 		{
 			name: "error unknown macro",
-			asm:  ".int .boot.data",
+			asm:  ".byte .boot.bss",
 			want: []Token{
-				unknown(".int"),
-				unknown(".boot.data"),
+				unknown(".byte"),
+				unknown(".boot.bss"),
 				tok(token.EndOfFile),
 			},
 			wantErr: true,
