@@ -15,8 +15,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const flagReservedBytes = "reservedBytes"
-const flagOutName = "outName"
+const flagReservedBytes = "reserved"
+const flagOutName = "out"
 
 // asmCmd represents the asm command
 var asmCmd = &cobra.Command{
