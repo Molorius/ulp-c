@@ -91,6 +91,22 @@ esp_err_t u_load_bin(u_header_t *header, const uint8_t *binary, size_t size)
     return err;
 }
 
+// take the ulp mutex
+static void ulp_mutex_take(u_mem_t *mem)
+{
+    u_set_data(mem, 1, true); // flag[1] = true
+    u_set_data(mem, 2, 0); // turn = 0
+    while (u_read_data(mem, 0) && (u_read_data(mem, 2) == 0)) { // while flag[0] && turn == 0
+        // busy wait
+    }
+}
+
+// give the ulp mutex
+static void ulp_mutex_give(u_mem_t *mem)
+{
+    u_set_data(mem, 1, false); // flag[1] = false
+}
+
 
 // read a character from input
 static char character(void)
@@ -179,7 +195,6 @@ static esp_err_t ulp_start(void)
 
     err = u_load_bin(&header, binary, bin_size/sizeof(uint32_t));
     if (err) {
-        // return err;
         return -10;
     }
     u_mem_setup(header, &mem);
@@ -187,16 +202,15 @@ static esp_err_t ulp_start(void)
     err = ulp_run(ULP_START);
     if (err) {
         return -12;
-        // return err;
     }
 
     start = esp_log_timestamp();
     while ((esp_log_timestamp()-start) < TIMEOUT_MS) {
-        // ulp_mutex_take(); // take the lock
-        fn = u_read_data(&mem, 0); // read the function name
-        param = u_read_data(&mem, 1); // read parameter
-        u_set_data(&mem, 0, ESP_ACK); // write the acknowledgement
-        // ulp_mutex_give(); // return lock
+        ulp_mutex_take(&mem); // take the lock
+        fn = u_read_data(&mem, 3); // read the function name
+        param = u_read_data(&mem, 4); // read parameter
+        u_set_data(&mem, 3, ESP_ACK); // write the acknowledgement
+        ulp_mutex_give(&mem); // return lock
         switch (fn) {
             case ESP_ACK:
                 vTaskDelay(1);
@@ -214,10 +228,7 @@ static esp_err_t ulp_start(void)
         }
     }
 
-    // return RTC_SLOW_MEM;
-    // return mem.text;
-    return mem.data;
-    // return -2;
+    return -2;
 }
 
 void app_main(void)

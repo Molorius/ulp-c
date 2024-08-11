@@ -22,7 +22,56 @@ func TestSimpleHardware(t *testing.T) {
 	halt
 
 	.boot.data
+	.int 0, 0, 0 // the mutex
 	.int 1, 0 // DONE, 0
+	`
+
+	// compile binary
+	assembler := asm.Assembler{}
+	bin, err := assembler.BuildFile(assembly, "testSimpleHardware.S", reservedBytes)
+	if err != nil {
+		t.Fatalf("Failed to compile: %s", err)
+	}
+
+	port, err := h.EnvPort()
+	if err != nil {
+		t.Skipf("Skipping test: %v", err)
+	}
+
+	// test that it works repeatedly
+	testRuns := 5
+	for i := 0; i < testRuns; i++ {
+		_, err = h.Execute(port, bin)
+		if err != nil {
+			t.Fatalf("Test %d failed: %s", i, err)
+		}
+	}
+}
+
+func TestMutex(t *testing.T) {
+	h := Hardware{}
+	assembly := `
+	.boot
+	move r2, mutex
+	move r1, 1
+	st r1, r2, 0 // flag[0] = true
+	st r1, r2, 2 // turn = 1
+	// while (flag[1] && turn == 1) { }
+loop:
+	ld r0, r2, 1
+	jumpr loop, 1, lt
+	ld r0, r2, 2
+	jumpr loop, 0, gt
+end:
+	st r1, r2, 3 // set to DONE
+	move r0, 0
+	st r0, r2, 0 // flag[0] = false
+	halt
+
+	.boot.data
+mutex:
+	.int 0, 0, 0 // the mutex
+	.int 0, 0 // ESP_ACK, 0
 	`
 
 	// compile binary
