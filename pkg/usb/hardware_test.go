@@ -5,18 +5,19 @@ This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
-package usb
+package usb_test
 
 import (
 	"testing"
 
 	"github.com/Molorius/ulp-c/pkg/asm"
+	"github.com/Molorius/ulp-c/pkg/usb"
 )
 
 const reservedBytes = 8176
 
 func TestSimpleHardware(t *testing.T) {
-	h := Hardware{}
+	h := usb.Hardware{}
 	assembly := `
 	.boot
 	halt
@@ -49,7 +50,7 @@ func TestSimpleHardware(t *testing.T) {
 }
 
 func TestMutex(t *testing.T) {
-	h := Hardware{}
+	h := usb.Hardware{}
 	assembly := `
 	.boot
 	move r2, mutex

@@ -182,6 +182,16 @@ void printok(void)
     printf(" OK\n");
 }
 
+// erase the ulp memory
+static void erase_ulp(void)
+{
+    int i;
+    const int high = 8176 / sizeof(uint32_t);
+
+    for (i=0; i<high; i++) {
+        RTC_SLOW_MEM[i] = 0;
+    }
+}
 
 // start the ulp
 static esp_err_t ulp_start(void)
@@ -254,8 +264,8 @@ void app_main(void)
             printf("decoding %i ERR\n", err);
             continue;
         }
+        erase_ulp();
         err = ulp_start();
-        // erase_ulp();
         if (err) {
             printf("ulp %i ERR\n", err);
             continue;
