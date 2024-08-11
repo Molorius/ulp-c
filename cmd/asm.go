@@ -17,6 +17,7 @@ import (
 
 const flagReservedBytes = "reserved"
 const flagOutName = "out"
+const flagSize = "size"
 
 // asmCmd represents the asm command
 var asmCmd = &cobra.Command{
@@ -69,6 +70,12 @@ This will generate a file out.bin that can be executed by ulp_load_binary().`,
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		// optionally print section size
+		printSize, _ := cmd.Flags().GetBool(flagSize)
+		if printSize {
+			fmt.Println(assembler.Compiler.FormatSections())
+		}
 	},
 }
 
@@ -77,4 +84,5 @@ func init() {
 
 	asmCmd.Flags().IntP(flagReservedBytes, "r", 8176, "number of bytes reserved for the ULP")
 	asmCmd.Flags().StringP(flagOutName, "o", "out.bin", "name of the output file")
+	asmCmd.Flags().BoolP(flagSize, "s", false, "print the size of all sections")
 }

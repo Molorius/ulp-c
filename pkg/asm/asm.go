@@ -13,6 +13,7 @@ import (
 )
 
 type Assembler struct {
+	Compiler Compiler
 }
 
 func (asm *Assembler) BuildFile(content string, name string, reservedBytes int) ([]byte, error) {
@@ -26,8 +27,8 @@ func (asm *Assembler) BuildFile(content string, name string, reservedBytes int) 
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("error while parsing"), err)
 	}
-	c := Compiler{}
-	bin, err := c.Compile(stmnts, reservedBytes)
+	asm.Compiler = Compiler{}
+	bin, err := asm.Compiler.Compile(stmnts, reservedBytes)
 	if err != nil {
 		return nil, err
 	}

@@ -104,6 +104,16 @@ func (c *Compiler) genPreLabels() error {
 	return nil
 }
 
+func (c *Compiler) FormatSections() string {
+	stackStr := ""
+	if c.Stack.Size != 0 {
+		stackStr = fmt.Sprintf(" .stack=%d", c.Stack.Size)
+	}
+	total := c.Boot.Size + c.BootData.Size + c.Text.Size + c.Data.Size + c.Bss.Size + c.Stack.Size
+	return fmt.Sprintf(".boot=%d .boot.data=%d .text=%d .data=%d .bss=%d%s total=%d",
+		c.Boot.Size, c.BootData.Size, c.Text.Size, c.Data.Size, c.Bss.Size, stackStr, total)
+}
+
 func (c *Compiler) genLabels(reservedBytes int) error {
 	// resolve section offsets
 	c.Boot.Offset = 0
@@ -113,12 +123,11 @@ func (c *Compiler) genLabels(reservedBytes int) error {
 	c.Bss.Offset = c.Data.Offset + c.Data.Size
 	// data is never placed in stack, calculate remaining memory
 	c.Stack.Offset = c.Bss.Offset + c.Bss.Size
-	c.Stack.Size = reservedBytes - c.Stack.Offset
-	if c.Stack.Size < 0 {
-		total := c.Stack.Offset
-		return fmt.Errorf("overflowing the %d reserved bytes: .boot=%d .boot.data=%d .text=%d .data=%d .bss=%d total=%d",
-			reservedBytes, c.Boot.Size, c.BootData.Size, c.Text.Size, c.Data.Size, c.Bss.Size, total)
+	stackSize := reservedBytes - c.Stack.Offset
+	if stackSize < 0 {
+		return fmt.Errorf("overflowing the %d reserved bytes: %s", reservedBytes, c.FormatSections())
 	}
+	c.Stack.Size = stackSize
 
 	// resolve label offsets
 	for name, offset := range c.preLabels {
