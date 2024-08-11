@@ -10,6 +10,7 @@ package asm
 import (
 	"testing"
 
+	"github.com/Molorius/ulp-c/pkg/emu"
 	"github.com/Molorius/ulp-c/pkg/usb"
 )
 
@@ -198,6 +199,24 @@ func RunTest(t *testing.T, name string, asm string, expect string) {
 				t.Skipf("Skipping test: %v", err)
 			}
 			got, err := hw.Execute(port, bin)
+			if err != nil {
+				t.Fatalf("Execution failed: %s", err)
+			}
+			if got != expect {
+				t.Errorf("expected \"%s\" got \"%s\"", expect, got)
+			}
+		})
+
+		// run the test on emulator
+		t.Run("emulator", func(t *testing.T) {
+			u := emu.UlpEmu{}
+			maxSeconds := 1 // maximum emulated seconds
+			maxCycles := uint64(8_000_000 * maxSeconds)
+			err := u.LoadBinary(bin)
+			if err != nil {
+				t.Fatalf("Loading binary failed: %s", err)
+			}
+			got, err := u.RunWithSystem(maxCycles)
 			if err != nil {
 				t.Fatalf("Execution failed: %s", err)
 			}
