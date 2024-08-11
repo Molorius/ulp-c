@@ -117,7 +117,7 @@ send_esp.end:
     .text
 done:
 	sub r3, r3, 1 // increase stack
-	move r0, 1
+	move r0, 1 // set to DONE
 	st r0, r3, 0
 	move r2, .+2
 	jump send_esp
@@ -181,21 +181,13 @@ func RunTestWithHeader(t *testing.T, name string, asm string, expect string) {
 
 func RunTest(t *testing.T, name string, asm string, expect string) {
 	t.Run(name, func(t *testing.T) {
-		var bin []byte
-		var err error
-
 		// compile the binary
-		compiled := t.Run("compile", func(t *testing.T) {
-			a := Assembler{}
-			filename := "test.S"
-			reserved := 8176
-			bin, err = a.BuildFile(asm, filename, reserved)
-			if err != nil {
-				t.Fatalf("Failed to compile: %s", err)
-			}
-		})
-		if !compiled {
-			return
+		a := Assembler{}
+		filename := "test.S"
+		reserved := 8176
+		bin, err := a.BuildFile(asm, filename, reserved)
+		if err != nil {
+			t.Fatalf("Failed to compile: %s", err)
 		}
 
 		// run the test on hardware

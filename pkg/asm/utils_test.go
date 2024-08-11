@@ -7,43 +7,50 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 package asm
 
-import "testing"
+import (
+	"testing"
+)
 
-func TestJumpr(t *testing.T) {
+func TestTheRunnerWithHeaders(t *testing.T) {
 	tests := []struct {
 		name   string
 		asm    string
 		expect string
 	}{
 		{
-			name: "less than or equal",
+			name:   "simple",
+			asm:    "",
+			expect: "",
+		},
+		{
+			name: "print_u16",
 			asm: `
-			move r0, 0
-			jumpr t.0, 0, le
-			jump done
-		t.0:
-			jumpr t.1, 0xFFFF, le
-			jump done
-		t.1:
+			move r0, 123
+			st r0, r3, 0
+			move r2, .+2
+			jump print_u16
 
-			move r0, 0xFFFE
-			jumpr t.2, 0xFFFE, le
-			jump done
-		t.2:
-			jumpr done, 0xFFFD, le
-
-			move r0, 0xFFFF
-			jumpr t.3, 0xFFFF, le
-			jump done
-		t.3:
-			jumpr done, 0xFFFE, le
-
-			move r0, 1
+			move r0, 456
 			st r0, r3, 0
 			move r2, .+2
 			jump print_u16
 			`,
-			expect: "1 ",
+			expect: "123 456 ",
+		},
+		{
+			name: "print_char",
+			asm: `
+			move r0, 65
+			st r0, r3, 0
+			move r2, .+2
+			jump print_char
+
+			move r0, 66
+			st r0, r3, 0
+			move r2, .+2
+			jump print_char
+			`,
+			expect: "AB",
 		},
 	}
 	for _, tt := range tests {
