@@ -1,0 +1,48 @@
+/*
+Copyright 2024 Blake Felt blake.w.felt@gmail.com
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+*/
+package usb
+
+import (
+	"testing"
+
+	"github.com/Molorius/ulp-c/pkg/asm"
+)
+
+const reservedBytes = 8176
+
+func TestSimpleHardware(t *testing.T) {
+	h := Hardware{}
+	assembly := `
+	.boot
+	halt
+
+	.boot.data
+	.int 1, 0 // DONE, 0
+	`
+
+	// compile binary
+	assembler := asm.Assembler{}
+	bin, err := assembler.BuildFile(assembly, "testSimpleHardware.S", reservedBytes)
+	if err != nil {
+		t.Fatalf("Failed to compile: %s", err)
+	}
+
+	port, err := h.EnvPort()
+	if err != nil {
+		t.Skipf("Skipping test: %v", err)
+	}
+
+	// test that it works repeatedly
+	testRuns := 5
+	for i := 0; i < testRuns; i++ {
+		_, err = h.Execute(port, bin)
+		if err != nil {
+			t.Fatalf("Test %d failed: %s", i, err)
+		}
+	}
+}
