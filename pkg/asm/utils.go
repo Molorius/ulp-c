@@ -175,54 +175,52 @@ func CompileTestWithHeader(asm string) ([]byte, error) {
 	return a.BuildFile(asm, filename, reserved)
 }
 
-func RunTestWithHeader(t *testing.T, name string, asm string, expect string) {
+func RunTestWithHeader(t *testing.T, asm string, expect string) {
 	content := TEST_PRELUDE + asm + TEST_POSTLUDE
-	RunTest(t, name, content, expect)
+	RunTest(t, content, expect)
 }
 
-func RunTest(t *testing.T, name string, asm string, expect string) {
-	t.Run(name, func(t *testing.T) {
-		// compile the binary
-		a := Assembler{}
-		filename := "test.S"
-		reserved := 8176
-		bin, err := a.BuildFile(asm, filename, reserved)
+func RunTest(t *testing.T, asm string, expect string) {
+	// compile the binary
+	a := Assembler{}
+	filename := "test.S"
+	reserved := 8176
+	bin, err := a.BuildFile(asm, filename, reserved)
+	if err != nil {
+		t.Fatalf("Failed to compile: %s", err)
+	}
+
+	// run the test on hardware
+	t.Run("hardware", func(t *testing.T) {
+		hw := usb.Hardware{}
+		port, err := hw.EnvPort()
 		if err != nil {
-			t.Fatalf("Failed to compile: %s", err)
+			t.Skipf("Skipping test: %v", err)
 		}
+		got, err := hw.Execute(port, bin)
+		if err != nil {
+			t.Fatalf("Execution failed: %s", err)
+		}
+		if got != expect {
+			t.Errorf("expected \"%s\" got \"%s\"", expect, got)
+		}
+	})
 
-		// run the test on hardware
-		t.Run("hardware", func(t *testing.T) {
-			hw := usb.Hardware{}
-			port, err := hw.EnvPort()
-			if err != nil {
-				t.Skipf("Skipping test: %v", err)
-			}
-			got, err := hw.Execute(port, bin)
-			if err != nil {
-				t.Fatalf("Execution failed: %s", err)
-			}
-			if got != expect {
-				t.Errorf("expected \"%s\" got \"%s\"", expect, got)
-			}
-		})
-
-		// run the test on emulator
-		t.Run("emulator", func(t *testing.T) {
-			u := emu.UlpEmu{}
-			maxSeconds := 1 // maximum emulated seconds
-			maxCycles := uint64(8_000_000 * maxSeconds)
-			err := u.LoadBinary(bin)
-			if err != nil {
-				t.Fatalf("Loading binary failed: %s", err)
-			}
-			got, err := u.RunWithSystem(maxCycles)
-			if err != nil {
-				t.Fatalf("Execution failed: %s", err)
-			}
-			if got != expect {
-				t.Errorf("expected \"%s\" got \"%s\"", expect, got)
-			}
-		})
+	// run the test on emulator
+	t.Run("emulator", func(t *testing.T) {
+		u := emu.UlpEmu{}
+		maxSeconds := 1 // maximum emulated seconds
+		maxCycles := uint64(8_000_000 * maxSeconds)
+		err := u.LoadBinary(bin)
+		if err != nil {
+			t.Fatalf("Loading binary failed: %s", err)
+		}
+		got, err := u.RunWithSystem(maxCycles)
+		if err != nil {
+			t.Fatalf("Execution failed: %s", err)
+		}
+		if got != expect {
+			t.Errorf("expected \"%s\" got \"%s\"", expect, got)
+		}
 	})
 }

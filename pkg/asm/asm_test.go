@@ -48,7 +48,7 @@ func TestJumpr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RunTestWithHeader(t, tt.name, tt.asm, tt.expect)
+			RunTestWithHeader(t, tt.asm, tt.expect)
 		})
 	}
 }
