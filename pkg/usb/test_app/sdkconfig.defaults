@@ -1,4 +1,9 @@
 #
+# Build type
+#
+CONFIG_APP_REPRODUCIBLE_BUILD=y
+
+#
 # Ultra Low Power (ULP) Co-processor
 #
 CONFIG_ULP_COPROC_ENABLED=y
