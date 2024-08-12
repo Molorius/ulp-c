@@ -226,7 +226,7 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 			newIp := u.IP + uint16(step)
 			value := u.R[0]
 			if (step >> 7) == 1 {
-				newIp = u.IP - uint16(step&0x3F) // 6 bits
+				newIp = u.IP - uint16(step&0x7F) // 7 bits
 			}
 			shouldJump := value < uint16(threshold)
 			if cond == 1 {
@@ -243,7 +243,7 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 			step := bitRead(instr, 17, 8)
 			newIp := u.IP + uint16(step)
 			if (step >> 7) == 1 {
-				newIp = u.IP - uint16(step&0x3F) // 6 bits
+				newIp = u.IP - uint16(step&0x7F) // 7 bits
 			}
 			var shouldJump bool
 			switch cond {
