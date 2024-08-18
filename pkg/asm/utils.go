@@ -31,21 +31,19 @@ jump main
 // }
 	.text
 ulp_mutex_take:
-	st r0, r3, -1 // store values on stack
-	st r1, r3, -2
-	move r1, __boot_data_start
+	st r0, r3, -1 // store value on stack
 	move r0, 1
-	st r0, r1, 0 // flag[0] = true
-	st r0, r1, 2 // turn = 1
+	st r0, r0, (__boot_data_start-1) // flag[0] = true
+	st r0, r0, (__boot_data_start-1)+1 // turn = 1
 	// while (flag[1] && turn == 1) { }
 ulp_mutex_take.loop:
-	ld r0, r1, 1
+	// this loop assumes that 'flag[1]' and 'turn' can only be 0 or 1
+	ld r0, r0, (__boot_data_start-1)+1 // r0 = flag[1]
 	jumpr ulp_mutex_take.end, 1, lt
-	ld r0, r1, 2
+	ld r0, r0, (__boot_data_start-1)+2 // r0 = turn
 	jumpr ulp_mutex_take.loop, 0, gt
 ulp_mutex_take.end:
-	ld r1, r3, -2 // reload from stack
-	ld r0, r3, -1
+	ld r0, r3, -1 // restore value
 	jump r2
 
 // void ulp_mutex_give(void) {
@@ -54,14 +52,10 @@ ulp_mutex_take.end:
 	.text
 ulp_mutex_give:
 	st r0, r3, -1
-	st r1, r3, -2
 	move r0, 0
-	move r1, __boot_data_start
-	st r0, r1, 0 // flag[0] = false
-	ld r1, r3, -2
+	st r0, r0, __boot_data_start // flag[0] = false
 	ld r0, r3, -1
 	jump r2
-
 
 // void send_esp(uint16_t fn, uint16_t param)
 // {
@@ -81,33 +75,31 @@ ulp_mutex_give:
 // }
 	.text
 send_esp:
-	sub r3, r3, 3
+	sub r3, r3, 2
 	st r0, r3, 0
-	st r1, r3, 1
-	st r2, r3, 2
+	st r2, r3, 1
 
-	move r1, __boot_data_start
-	move r2, .+2 // ulp_mutex_take()
+	move r2, send_esp.loop // ulp_mutex_take()
 	jump ulp_mutex_take
 send_esp.loop:
-	ld r0, r1, 3
+	ld r0, r2, __boot_data_start - send_esp.loop + 3
 	jumpr send_esp.end, 0, le
-	move r2, . + 2 // ulp_mutex_give()
+	move r2, send_esp.loop.1 // ulp_mutex_give()
 	jump ulp_mutex_give
+send_esp.loop.1:
 	move r2, send_esp.loop // ulp_mutex_take()
 	jump ulp_mutex_take
 send_esp.end:
-	ld r0, r3, 3 // esp_write[0] = fn
-	st r0, r1, 3
-	ld r0, r3, 4 // esp_write[1] = param
-	st r0, r1, 4
+	ld r0, r3, 2 // esp_write[0] = fn
+	st r0, r2, __boot_data_start - send_esp.loop + 3
+	ld r0, r3, 3 // esp_write[1] = param
+	st r0, r2, __boot_data_start - send_esp.loop + 4
 	move r2, .+2 // ulp_mutex_give()
 	jump ulp_mutex_give
 
-	ld r2, r3, 2
-	ld r1, r3, 1
+	ld r2, r3, 1
 	ld r0, r3, 0
-	add r3, r3, 3
+	add r3, r3, 2
 	jump r2
 
 // __noreturn void done(void)
@@ -132,10 +124,11 @@ done:
 print_u16:
     sub r3, r3, 3 // increase stack for temp and function call
     st r2, r3, 2 // store r2 in temp slot
-    ld r2, r3, 3 // load c
-    st r2, r3, 1 // store c for send_esp
     move r2, 2
+print_u16.call:
     st r2, r3, 0 // store constant for send_esp
+	ld r2, r3, 3 // load c
+    st r2, r3, 1 // store c for send_esp
 	move r2, .+2 // send_esp()
     jump send_esp
     ld r2, r3, 2 // reload r2
@@ -149,16 +142,9 @@ print_u16:
     .text
 print_char:
     sub r3, r3, 3 // increase stack for temp and function call
-    st r2, r3, 2 // store r2 in temp slot
-    ld r2, r3, 3 // load c
-    st r2, r3, 1 // store c for send_esp
-    move r2, 3
-    st r2, r3, 0 // store constant for send_esp
-	move r2, .+2 // send_esp()
-    jump send_esp
-    ld r2, r3, 2 // reload r2
-    add r3, r3, 3 // restore stack
-    jump r2
+	st r2, r3, 2
+	move r2, 3
+	jump print_u16.call
 
 	.text
 main:
