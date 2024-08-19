@@ -1,3 +1,10 @@
+/*
+Copyright 2024 Blake Felt blake.w.felt@gmail.com
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+*/
 package hlp
 
 import (
@@ -83,6 +90,15 @@ func Test_scanner_scanFile(t *testing.T) {
 			hlp:  "!=",
 			want: []Token{
 				tok(token.NotEqual),
+				eof(),
+			},
+		},
+		{
+			name: "><",
+			hlp:  "><",
+			want: []Token{
+				tok(token.Greater),
+				tok(token.Less),
 				eof(),
 			},
 		},
