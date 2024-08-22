@@ -21,6 +21,8 @@ const (
 	RightParen             // token for ) symbol
 	Colon                  // token for : symbol
 	BackSlash              // token for \ symbol
+	RightRight             // token for >> symbol
+	LeftLeft               // token for << symbol
 	NewLine                // token for newline "\n"
 	Here                   // token for . symbol
 
@@ -109,6 +111,8 @@ var toToken = map[string]Type{
 	")":          RightParen,
 	":":          Colon,
 	"\\":         BackSlash,
+	">>":         RightRight,
+	"<<":         LeftLeft,
 	".macro":     Macro,
 	".endmacro":  EndMacro,
 	".global":    Global,

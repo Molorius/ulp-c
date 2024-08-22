@@ -284,7 +284,8 @@ primary     : NUMBER | "." | ident | "(" expression ")"
 unary       : "-" unary
             | primary
 factor      : unary ( ( "/" | "*" ) unary )*
-expression  : factor ( ( "-" | "+" ) factor )*
+additive    : factor ( ( "-" | "+" ) factor )*
+expression  : additive ( ( "<<" | ">>" ) additive )*
 reg         : "r0" | "r1" | "r2" | "r3"
 any         : ( reg | primary )
 

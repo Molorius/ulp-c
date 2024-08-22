@@ -194,7 +194,7 @@ func (p *parser) argument() (Arg, error) {
 	return ArgExpr{expr}, nil
 }
 
-func (p *parser) Expression() (Expr, error) {
+func (p *parser) Additive() (Expr, error) {
 	expr, err := p.factor()
 	if err != nil {
 		return nil, err
@@ -204,6 +204,26 @@ func (p *parser) Expression() (Expr, error) {
 		f, err := p.factor()
 		if err != nil {
 			return nil, errors.Join(UnfinishedError{op, "a factor"}, err)
+		}
+		expr = ExprBinary{
+			Left:     expr,
+			Operator: op,
+			Right:    f,
+		}
+	}
+	return expr, nil
+}
+
+func (p *parser) Expression() (Expr, error) {
+	expr, err := p.Additive()
+	if err != nil {
+		return nil, err
+	}
+	for p.match(token.RightRight, token.LeftLeft) {
+		op := p.previous()
+		f, err := p.Additive()
+		if err != nil {
+			return nil, errors.Join(UnfinishedError{op, "an additive"}, err)
 		}
 		expr = ExprBinary{
 			Left:     expr,

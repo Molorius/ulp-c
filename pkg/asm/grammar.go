@@ -149,6 +149,10 @@ func (e ExprBinary) Evaluate(labels map[string]*Label) (int, error) {
 		return left / right, nil
 	case token.Star:
 		return left * right, nil
+	case token.RightRight:
+		return left >> right, nil
+	case token.LeftLeft:
+		return left << right, nil
 	default:
 		return 0, GenericTokenError{e.Operator, "unknown binary token, please file a bug report"}
 	}

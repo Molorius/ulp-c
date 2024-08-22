@@ -160,6 +160,20 @@ func (s *scanner) nextLexeme() (string, FileRef) {
 				return s.nextLexeme()
 			}
 		}
+		if c == '<' {
+			c2, _ := s.peak()
+			if c2 == '<' {
+				s.advancePointer()
+				return "<<", f
+			}
+		}
+		if c == '>' {
+			c2, _ := s.peak()
+			if c2 == '>' {
+				s.advancePointer()
+				return ">>", f
+			}
+		}
 		// check if we have a "#" comment
 		if c == '#' {
 			s.skipLine()
