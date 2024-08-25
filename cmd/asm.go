@@ -18,10 +18,11 @@ import (
 const flagReservedBytes = "reserved"
 const flagOutName = "out"
 const flagSize = "size"
+const flagOutputAssembly = "output_assembly"
 
 // asmCmd represents the asm command
 var asmCmd = &cobra.Command{
-	Use:   "asm",
+	Use:   "asm file",
 	Short: "Run the assembler",
 	Long: `Compile ULP assembly to an executable binary. 
 Currently this only supports one assembly file.
@@ -48,13 +49,25 @@ This will generate a file out.bin that can be executed by ulp_load_binary().`,
 		}
 		content := string(contentBytes)
 
-		// compile it
-		reservedBytes, _ := cmd.Flags().GetInt(flagReservedBytes)
+		var bin []byte
 		assembler := asm.Assembler{}
-		bin, err := assembler.BuildFile(content, filename, reservedBytes)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		reservedBytes, _ := cmd.Flags().GetInt(flagReservedBytes)
+
+		outputAssembly, _ := cmd.Flags().GetBool(flagOutputAssembly)
+		if outputAssembly {
+			// compile to assembly (binary with labels)
+			bin, err = assembler.BuildAssembly(content, filename, reservedBytes)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		} else {
+			// compile to a binary
+			bin, err = assembler.BuildFile(content, filename, reservedBytes)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 		}
 
 		// write it to a file
@@ -85,4 +98,5 @@ func init() {
 	asmCmd.Flags().IntP(flagReservedBytes, "r", 8176, "number of bytes reserved for the ULP")
 	asmCmd.Flags().StringP(flagOutName, "o", "out.bin", "name of the output file")
 	asmCmd.Flags().BoolP(flagSize, "s", false, "print the size of all sections")
+	asmCmd.Flags().Bool(flagOutputAssembly, false, "compile to ulp assembly rather than a binary")
 }

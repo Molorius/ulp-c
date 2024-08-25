@@ -48,7 +48,7 @@ type Compiler struct {
 	CurrentSection *Section
 }
 
-func (c *Compiler) Compile(program []Stmnt, reservedBytes int) ([]byte, error) {
+func (c *Compiler) compile(program []Stmnt, reservedBytes int) error {
 	c.program = program
 	c.Labels = make(map[string]*Label)
 	c.preLabels = make(map[string]int)
@@ -60,26 +60,79 @@ func (c *Compiler) Compile(program []Stmnt, reservedBytes int) ([]byte, error) {
 	c.Stack = Section{}
 	err := c.genPreLabels()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = c.genLabels(reservedBytes)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = c.genGlobals()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = c.compileAll()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = c.validateSections()
+	return err
+}
+
+func (c *Compiler) CompileToBin(program []Stmnt, reservedBytes int) ([]byte, error) {
+	err := c.compile(program, reservedBytes)
 	if err != nil {
 		return nil, err
 	}
 	bin, err := c.buildBinary()
 	return bin, err
+}
+
+func (c *Compiler) CompileToAsm(program []Stmnt, reservedBytes int) ([]byte, error) {
+	// find all of the addresses we need
+	err := c.compile(program, reservedBytes)
+	if err != nil {
+		return nil, err
+	}
+	addresses := make(map[int]*Label)
+	for _, label := range c.Labels {
+		addresses[label.Value] = label
+	}
+	s := ".text\n"
+	start := 0
+	b := make([]byte, 0)
+	b = append(b, c.Boot.Bin...)
+	b = append(b, c.Text.Bin...)
+	s = c.buildAsm(start, s, b, addresses)
+
+	start += len(b)
+	s += ".data\n"
+	b = make([]byte, 0)
+	b = append(b, c.BootData.Bin...)
+	b = append(b, c.Data.Bin...)
+	s = c.buildAsm(start, s, b, addresses)
+
+	start += len(b)
+	s += ".bss\n"
+	b = make([]byte, 0)
+	b = append(b, c.Bss.Bin...)
+	s = c.buildAsm(start, s, b, addresses)
+	s += fmt.Sprintf(".skip %d", c.Stack.Size)
+
+	return []byte(s), nil
+}
+
+func (c *Compiler) buildAsm(start int, s string, bin []byte, addr map[int]*Label) string {
+	for pos, b := range bin {
+		i := start + pos
+		label, ok := addr[i]
+		if ok {
+			if label.Global {
+				s += fmt.Sprintf(".global %s\n%s:\n", label.Name, label.Name)
+			}
+		}
+		s += fmt.Sprintf("    .byte 0x%02X\n", b)
+	}
+	return s
 }
 
 func (c *Compiler) genPreLabels() error {

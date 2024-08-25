@@ -28,7 +28,26 @@ func (asm *Assembler) BuildFile(content string, name string, reservedBytes int) 
 		return nil, errors.Join(fmt.Errorf("error while parsing"), err)
 	}
 	asm.Compiler = Compiler{}
-	bin, err := asm.Compiler.Compile(stmnts, reservedBytes)
+	bin, err := asm.Compiler.CompileToBin(stmnts, reservedBytes)
+	if err != nil {
+		return nil, err
+	}
+	return bin, nil
+}
+
+func (asm *Assembler) BuildAssembly(content string, name string, reservedBytes int) ([]byte, error) {
+	s := scanner{}
+	tokens, err := s.scanFile(content, name)
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("error while scanning"), err)
+	}
+	p := parser{}
+	stmnts, err := p.parseTokens(tokens)
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("error while parsing"), err)
+	}
+	asm.Compiler = Compiler{}
+	bin, err := asm.Compiler.CompileToAsm(stmnts, reservedBytes)
 	if err != nil {
 		return nil, err
 	}
