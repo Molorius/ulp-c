@@ -5,7 +5,7 @@
 ulp-c is a C compiler for the ESP32 ULP coprocessor. It is not yet functional.
 
 - [X] Assembler
-- [ ] Intermediate Language
+- [ ] Hlp compiler (intermediate language)
 - [ ] C compiler
 
 # Testing

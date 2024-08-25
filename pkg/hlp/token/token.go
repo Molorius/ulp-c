@@ -22,6 +22,8 @@ const (
 	RightBrace               // token for }
 	LeftBracket              // token for [
 	RightBracket             // token for ]
+	At                       // token for @
+	Pound                    // token for #
 
 	// gotos
 
@@ -49,7 +51,23 @@ const (
 
 	// other
 
-	Asm // token for __asm__ modifier
+	Asm      // token for __asm__ function modifier
+	Noreturn // token for noreturn function modifier
+	Func     // token for function definition
+	Static   // token for static global variable modifier
+	String   // token for a string
+
+	// hardware instructions
+
+	RegWr // token for reg_wr instruction
+	RegRd // token for reg_rd instruction
+	Wait  // token for wait instruction
+	I2cWr // token for i2c_wr instruction
+	I2cRd // token for i2c_rd instruction
+	Halt  // token for halt instruction
+	Wake  // token for wake instruction
+	Sleep // token for sleep instruction
+	Adc   // token for adc instruction
 
 	// literals
 	Identifier
@@ -60,32 +78,46 @@ const (
 )
 
 var toToken = map[string]Type{
-	";":       Semicolon,
-	":":       Colon,
-	"&":       Ampersand,
-	"=":       Equal,
-	"(":       LeftParen,
-	")":       RightParen,
-	"[":       LeftBracket,
-	"]":       RightBracket,
-	"{":       LeftBrace,
-	"}":       RightBrace,
-	"goto":    Goto,
-	"if":      If,
-	"ifEq":    IfEq,
-	"ifOv":    IfOv,
-	"+":       Plus,
-	"-":       Minus,
-	"|":       Or,
-	"<<":      Lsh,
-	">>":      Rsh,
-	"==":      EqualEqual,
-	"!=":      NotEqual,
-	">":       Greater,
-	"<":       Less,
-	">=":      GreaterEqual,
-	"<=":      LessEqual,
-	"__asm__": Asm,
+	";":        Semicolon,
+	":":        Colon,
+	"&":        Ampersand,
+	"=":        Equal,
+	"(":        LeftParen,
+	")":        RightParen,
+	"[":        LeftBracket,
+	"]":        RightBracket,
+	"{":        LeftBrace,
+	"}":        RightBrace,
+	"@":        At,
+	"#":        Pound,
+	"goto":     Goto,
+	"if":       If,
+	"ifEq":     IfEq,
+	"ifOv":     IfOv,
+	"+":        Plus,
+	"-":        Minus,
+	"|":        Or,
+	"<<":       Lsh,
+	">>":       Rsh,
+	"==":       EqualEqual,
+	"!=":       NotEqual,
+	">":        Greater,
+	"<":        Less,
+	">=":       GreaterEqual,
+	"<=":       LessEqual,
+	"__asm__":  Asm,
+	"noreturn": Noreturn,
+	"func":     Func,
+	"static":   Static,
+	"reg_wr":   RegWr,
+	"reg_rd":   RegRd,
+	"wait":     Wait,
+	"i2c_wr":   I2cWr,
+	"i2c_rd":   I2cRd,
+	"halt":     Halt,
+	"wake":     Wake,
+	"sleep":    Sleep,
+	"adc":      Adc,
 }
 var toString map[Type]string
 
@@ -108,6 +140,8 @@ func (t Type) String() string {
 		return "Number"
 	case EndOfFile:
 		return "EOF"
+	case String:
+		return "String"
 	default:
 		return "UNKNOWN"
 	}
