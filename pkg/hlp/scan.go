@@ -29,7 +29,8 @@ type Token struct {
 	TokenType token.Type
 	Lexeme    string
 	Ref       FileRef
-	Number    int // the number, if applicable
+	Number    int    // the number, if applicable
+	StringVal string // the string, if applicable
 }
 
 func (t *Token) Equal(other *Token) bool {
@@ -43,6 +44,8 @@ func (t *Token) Equal(other *Token) bool {
 		return t.Number == other.Number
 	case token.Unknown:
 		return t.Lexeme == other.Lexeme
+	case token.String:
+		return t.StringVal == other.StringVal
 	default:
 		return true
 	}
@@ -102,6 +105,22 @@ func (s *Scanner) buildToken(lexeme string, ref FileRef) (Token, error) {
 	if t != token.Unknown {
 		tok.TokenType = t
 		return tok, nil
+	}
+
+	if lexeme == "\"" {
+		tok.TokenType = token.String
+		tok.StringVal = ""
+		for {
+			c, eof := s.peak()
+			if eof {
+				return tok, GenericTokenError{token: tok, message: "could not find closing quotation mark \""}
+			}
+			s.advancePointer()
+			if c == '"' {
+				return tok, nil
+			}
+			tok.StringVal += string(c)
+		}
 	}
 
 	n, err := strconv.ParseInt(lexeme, 0, 64)

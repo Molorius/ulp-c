@@ -55,7 +55,6 @@ const (
 	Noreturn // token for noreturn function modifier
 	Func     // token for function definition
 	Static   // token for static global variable modifier
-	String   // token for a string
 
 	// hardware instructions
 
@@ -72,6 +71,7 @@ const (
 	// literals
 	Identifier
 	Number
+	String // token for a string
 
 	EndOfFile
 	Unknown

@@ -16,3 +16,12 @@ type UnknownTokenError struct {
 func (e UnknownTokenError) Error() string {
 	return fmt.Sprintf("%s: unknown token \"%s\"", e.token.Ref, e.token.Lexeme)
 }
+
+type GenericTokenError struct {
+	token   Token
+	message string
+}
+
+func (e GenericTokenError) Error() string {
+	return fmt.Sprintf("%s: got \"%s\", %s", e.token.Ref, e.token.Lexeme, e.message)
+}

@@ -33,6 +33,10 @@ func eof() Token {
 	return tok(token.EndOfFile)
 }
 
+func str(s string) Token {
+	return Token{TokenType: token.String, StringVal: s}
+}
+
 func Test_scanner_scanFile(t *testing.T) {
 	f := "test.hlp"
 	tests := []struct {
@@ -102,6 +106,21 @@ func Test_scanner_scanFile(t *testing.T) {
 				eof(),
 			},
 		},
+		{
+			name: "string",
+			hlp:  "\"test0\"\"test1\" \"test2\"",
+			want: []Token{
+				str("test0"),
+				str("test1"),
+				str("test2"),
+				eof(),
+			},
+		},
+		{
+			name:    "incomplete string",
+			hlp:     "\"test",
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -109,6 +128,9 @@ func Test_scanner_scanFile(t *testing.T) {
 			got, err := s.ScanFile(tt.hlp, f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("scanner.scanFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
 				return
 			}
 			if !tokens_equal(got, tt.want) {
