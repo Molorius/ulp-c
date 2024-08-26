@@ -79,7 +79,7 @@ func (s *Scanner) ScanFile(content string, name string) ([]Token, error) {
 		}
 	}
 	if errs != nil {
-		errs = errors.Join(fmt.Errorf("error while scanning hlp"), errs)
+		errs = errors.Join(fmt.Errorf("error while scanning hlp file %s", name), errs)
 	}
 	return tokens, errs
 }
@@ -222,7 +222,7 @@ func (s *Scanner) trimWhitespace() {
 }
 
 func (s *Scanner) isWhitespace(b byte) bool {
-	return b == ' ' || b == '\r' || b == '\t'
+	return b == ' ' || b == '\r' || b == '\t' || b == '\n'
 }
 
 func (s *Scanner) peak() (byte, bool) {

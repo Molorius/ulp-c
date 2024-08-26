@@ -9,9 +9,9 @@ The language is intended to be simple to optimize. Therefore it is all three-add
 
 All integer types are unsigned 16-bit integers. They are not declared.
 
-Arrays must be declared, and can be declared such as `@ x 3;` for an array named "x" with 3 integers. "x" cannot be accessed directly, you must state the offset such as `x#0` to access the 0-th element. C-style structs can be constructed with these. You can obtain the address with "&" such as `addr = &x#0`. Arrays are guaranteed to align in memory after optimizations.
+Arrays must be declared, and can be declared such as `x @ 3;` for an array named "x" with 3 integers. "x" cannot be accessed directly, you must state the offset such as `x#0` to access the 0-th element. C-style structs can be constructed with these. You can obtain the address with "&" such as `addr = &x#0`. Arrays are guaranteed to align in memory after optimizations.
 
-Functions are declared with `func test_function(a, b, @ c 2) 3 {}` where `test_function` is the name of the function, `a` and `b` are integer inputs, `c` is an array input, and there are 3 outputs. All inputs must be set manually and all outputs must be set, so it could be called with `x, y, z = test_function(0, 1, 2, 3);`
+Functions are declared with `func test_function(a, b, c @ 2) 3 {}` where `test_function` is the name of the function, `a` and `b` are integer inputs, `c` is an array input, and there are 3 outputs. All inputs must be set manually and all outputs must be set, so it could be called with `x, y, z = test_function(0, 1, 2, 3);`
 
 Hardware access instructions, such as `halt()`, are supported. Note that all inputs must be integers.
 
@@ -127,9 +127,6 @@ unary_ops
 array
     : ident "#" NUMBER
 
-array_declaration
-    : "@" ident ";"
-
 var
     : ident "#" NUMBER
     | ident
@@ -183,7 +180,7 @@ jump_expr
     | "ifOv" var "=" primary bin_ops primary "goto" label
 
 function_def_input_var
-    : "@" ident NUMBER
+    : ident "@" NUMBER
     | ident
 
 function_def_input
@@ -241,23 +238,38 @@ function_statements
     | empty
 
 asm_statements
-    : ( string ( "," string )* )?
+    : ( string ";" )*
 
 function_declaration
     : "noreturn"? "func" ident 
         "(" function_def_input ")" // define the inputs
         NUMBER // number of outputs
         "{" function_statements* "}"
+    : "extern" ident
+        "(" function_def_input ")" // define the inputs
+        NUMBER // number of outputs
+        ";"
     : "__asm__" "func" ident
         "(" function_def_input ")" // define the inputs
         NUMBER // number of outputs
         "{" asm_statements "}"
 
+global_value
+    : NUMBER
+    | "&" var
+
+global_variable
+    : "extern"? var ";"
+    | var "=" global_value ";"
+
+global_array
+    : "extern"? var "@" NUMBER ;
+    | var "@" "=" ( global_value ( "," global_value )* )? ";"
+
 static_statement
     : function_declaration
-    | array_declaration
-    | var "=" primary
-    | var "=" "&" var
+    | global_variable
+    | global_array
     | empty
 
 program: static_statement* EOF

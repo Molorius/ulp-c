@@ -24,6 +24,7 @@ const (
 	RightBracket             // token for ]
 	At                       // token for @
 	Pound                    // token for #
+	Comma                    // token for ,
 
 	// gotos
 
@@ -90,6 +91,7 @@ var toToken = map[string]Type{
 	"}":        RightBrace,
 	"@":        At,
 	"#":        Pound,
+	",":        Comma,
 	"goto":     Goto,
 	"if":       If,
 	"ifEq":     IfEq,

@@ -8,6 +8,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Molorius/ulp-c/pkg/hlp"
@@ -16,7 +17,7 @@ import (
 
 // hlpCmd represents the hlp command
 var hlpCmd = &cobra.Command{
-	Use:   "hlp",
+	Use:   "hlp files...",
 	Short: "Run the hlp compiler",
 	Long: `Compile hlp to an executable binary.
 
@@ -28,8 +29,26 @@ This will generate a file out.bin that can be executed by ulp_load_binary().`,
 			cmd.Help()
 			os.Exit(0)
 		}
+		files := make([]hlp.HlpFile, 0)
+		for _, a := range args {
+			filename := a
+			contentBytes, err := os.ReadFile(filename)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			hlpFile := hlp.HlpFile{
+				Name:     filename,
+				Contents: string(contentBytes),
+			}
+			files = append(files, hlpFile)
+		}
 		h := hlp.Hlp{}
-		h.Build()
+		err := h.Build(files)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	},
 }
 

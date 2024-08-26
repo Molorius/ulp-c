@@ -121,6 +121,20 @@ func Test_scanner_scanFile(t *testing.T) {
 			hlp:     "\"test",
 			wantErr: true,
 		},
+		{
+			name: "ignore comment",
+			hlp:  "-// ignore me\n+",
+			want: []Token{
+				tok(token.Minus),
+				tok(token.Plus),
+				eof(),
+			},
+		},
+		{
+			name: "ignore whitespace",
+			hlp:  " \n\t\r",
+			want: []Token{eof()},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
