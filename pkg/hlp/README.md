@@ -65,17 +65,28 @@ loop:
 * [ ] Function inlining
 * [ ] Tail call optimization
 
-# Register Usage
+# ABI
 
-`r0` and `r1` can be used without restriction. `r2` is used to hold the return address of a function. Otherwise it can be used freely. `r3` is used as a stack pointer and should not be used for anything else.
+## Register Usage
 
-# Function Calls
+`r0` is used to pass values within functions, see below. `r1` can be used without restriction. `r2` is used to hold the return address of a function, otherwise it can be used freely. `r3` is used as a stack pointer and should not be used for anything else.
+
+## Function Calls
 
 Functions can be declared in any order (a function can call one defined later). Functions can be called in a different file.
 
-All function calls must have the return address on `r2`. Parameters and return values are on the stack, with the returns first (in order) followed by the parameters (in order). Parameters may be modified by the called function.
+All function calls must have the return address on `r2`. Parameters and return values are placed in memory sequentially, with return values first. So a function `test(a, b, c@2) 3` will have the memory layout:
+```
+[return#0, return#1, return#2, a, b, c#0, c#1]
+```
+Whereas a function with no inputs `noinputs(a, b, c@2)` will have the memory layout:
+```
+[a, b, c#0, c#1]
+```
 
-Registers `r0`, `r1`, and `r2` are callee saved. Register `r3` is used as a stack pointer and should therefore not be modified. When returning, the stack should be the same depth as when the function is called.
+The left-most value in memory will be passed/returned in the `r0` register. If there are no returns or arguments, `r0` is callee saved.
+
+Registers `r1` and `r2` are callee saved. Register `r3` is used as a stack pointer and should therefore not be modified. When returning, the stack should be the same depth as when the function is called.
 
 Each function call assumes it is at the top of the stack. So a function:
 ```
@@ -83,25 +94,21 @@ func demo(a) 2 {
     return a+1, 2;
 }
 ```
-will have the two returns at `r3[0]` and `r3[1]`, parameter `a` will reside at `r3[2]`.
+will have the two returns at `r0` and `r3[0]`, parameter `a` will reside at `r3[1]`.
 
 A function can be modified with `noreturn` which will tell the compiler to not save registers and to not return.
 
-Inline assembly is not supported, but functions can be assembly. They are declared the same as regular functions but with `__asm__ func`. Each assembly statement should be in a string. This is the demo code above as inline assembly:
+Inline assembly is not supported, but functions can be assembly. They are declared the same as regular functions but with `__asm__ func`. Each assembly statement should be in a string followed by a semicolon. This is the demo code above as inline assembly:
 ```
 __asm__ func demo(a) 2 {
-    "sub r3, r3, 1", // increase the stack
-    "st r0, r3, 0", // save the r0 register
+    "mv r0, 2";
+    "st r0, r3, 0"; // store 2 as return[1]
 
-    "ld r0, r3, 3", // load param a
-    "add r0, r0, 1", // a = a+1
-    "st r0, r3, 1", // store 'a' as return[0]
-    "mv r0, 2",
-    "st r0, r3, 2", // store 2 as return[1]
+    "ld r0, r3, 1"; // load param a into r0
+    "add r0, r0, 1"; // a = a+1
+    // a is returned on r0
 
-    "ld r0, r3, 0", // restore the r0 register
-    "add r3, r3, 1", // restore the stack
-    "jump r2" // return
+    "jump r2"; // return
 }
 ```
 
