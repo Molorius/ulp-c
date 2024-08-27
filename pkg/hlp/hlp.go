@@ -36,12 +36,12 @@ func (h *Hlp) Build(files []HlpFile) error {
 	if errs != nil {
 		return errs
 	}
-	fmt.Println(t)
 
 	// parse it
 	p := parser{}
 	stmnts, err := p.parseTokens(t)
 	if err != nil {
+		fmt.Printf("parsing error: %s\n", err)
 		return errs
 	}
 

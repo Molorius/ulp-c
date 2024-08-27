@@ -56,6 +56,7 @@ const (
 	Noreturn // token for noreturn function modifier
 	Func     // token for function definition
 	Static   // token for static global variable modifier
+	Extern   // token for extern modifier
 
 	// hardware instructions
 
@@ -111,6 +112,7 @@ var toToken = map[string]Type{
 	"noreturn": Noreturn,
 	"func":     Func,
 	"static":   Static,
+	"extern":   Extern,
 	"reg_wr":   RegWr,
 	"reg_rd":   RegRd,
 	"wait":     Wait,

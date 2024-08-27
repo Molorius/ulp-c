@@ -13,15 +13,19 @@ type StaticStatement interface {
 }
 
 type StaticStatementFunction struct {
-	NoReturn bool
-	Inputs   []PrimaryVar
-	Outputs  int
+	Ident      Token
+	NoReturn   bool
+	Static     bool
+	Extern     bool
+	Parameters []Definition
+	Returns    int
 }
 
 type StaticStatementAsm struct {
-	Inputs  []PrimaryVar
-	Outputs int
-	Asm     []string
+	Ident      Token
+	Parameters []Definition
+	Returns    int
+	Asm        []string
 }
 
 type StaticStatementArray struct {
@@ -29,10 +33,19 @@ type StaticStatementArray struct {
 	N     HlpNumber
 }
 
+type GlobalVar struct {
+	Ident  Token     // the identity of this global variable
+	Array  bool      // true if this is an array (uses the "@" operator)
+	Extern bool      // true if this is tagged with the "extern" modifier
+	Static bool      // true if this is tagged with the "static" modifier
+	Value  []Primary // the initial values
+}
+
 type Var struct {
-	Ident   Token
-	Offset  int
-	IsArray bool
+	Ident     Token // the identity of the variable access
+	Array     bool  // is this an array? Uses the "#" operator
+	Offset    int   // the offset after "#" in an array
+	AddressOf bool  // uses the "&" operator
 }
 
 type Primary interface {
@@ -44,4 +57,18 @@ type PrimaryNumber struct {
 
 type PrimaryVar struct {
 	V Var
+}
+
+type Definition interface {
+}
+
+type DefinitionInt struct {
+	Ident   Token
+	Initial HlpNumber
+}
+
+type DefinitionArray struct {
+	Ident   Token
+	Size    int
+	Initial []HlpNumber
 }

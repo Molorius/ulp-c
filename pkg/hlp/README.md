@@ -128,8 +128,8 @@ array
     : ident "#" NUMBER
 
 var
-    : ident "#" NUMBER
-    | ident
+    : "&"? ident "#" NUMBER
+    | "&"? ident
 
 primary
     : NUMBER
@@ -241,11 +241,11 @@ asm_statements
     : ( string ";" )*
 
 function_declaration
-    : "noreturn"? "func" ident 
+    : ( "noreturn" | "static" )? "func" ident 
         "(" function_def_input ")" // define the inputs
         NUMBER // number of outputs
         "{" function_statements* "}"
-    : "extern" ident
+    : "extern" "func" ident
         "(" function_def_input ")" // define the inputs
         NUMBER // number of outputs
         ";"

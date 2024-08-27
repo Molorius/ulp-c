@@ -25,3 +25,12 @@ type GenericTokenError struct {
 func (e GenericTokenError) Error() string {
 	return fmt.Sprintf("%s: got \"%s\", %s", e.token.Ref, e.token.Lexeme, e.message)
 }
+
+type ExpectedError struct {
+	token    Token
+	expected string
+}
+
+func (e ExpectedError) Error() string {
+	return fmt.Sprintf("%s: got \"%s\", expected a %s here", e.token.Ref, e.token.Lexeme, e.expected)
+}
