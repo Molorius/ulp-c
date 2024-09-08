@@ -225,7 +225,95 @@ func (p *parser) globalVariable(extern bool) (StaticStatement, error) {
 		return nil, ExpectedError{ident, "an identifier"}
 	}
 	p.advancePointer()
-	return nil, nil
+	nxt := p.peak()
+	gVar := GlobalVar{
+		Ident:  ident,
+		Array:  false,
+		Extern: extern,
+		Value:  make([]Primary, 0),
+	}
+
+	switch nxt.TokenType {
+	case token.Semicolon:
+		return nxt, nil
+	case token.Equal:
+		if extern {
+			return nil, ExpectedError{nxt, "a semicolon \";\""}
+		}
+		p.advancePointer()
+		if p.match(token.Number) {
+			n := p.previous()
+			gVar.Value = append(gVar.Value, n.Number)
+		} else if p.match(token.Ampersand) {
+
+		} else {
+			return nil, GenericTokenError{p.peak(), "a value"}
+		}
+	case token.At:
+		if !p.match(token.Number) {
+			return nil, ExpectedError{p.peak(), "a number for the size of the array"}
+		}
+		n := p.previous()
+		_ = n
+		gVar.Array = true
+
+		nxt2 := p.peak()
+		switch nxt2.TokenType {
+		case token.Semicolon:
+
+		case token.Equal:
+
+		default:
+			return nil, ExpectedError{nxt2, "a semicolon or equals"}
+		}
+	default:
+		return nil, UnknownTokenError{nxt}
+	}
+	return gVar, nil
+}
+
+func (p *parser) ArrayValues() []Primary {
+	return nil
+}
+
+func (p *parser) Primary() (Primary, error) {
+	val := p.next()
+	addressOf := false
+	switch val.TokenType {
+	case token.Number:
+		return PrimaryNumber{
+			N: HlpNumber(val.Number),
+		}, nil
+	case token.Ampersand:
+		addressOf = true
+		val = p.next()
+		if val.TokenType != token.Identifier {
+			return nil, ExpectedError{val, "an identifier"}
+		}
+		fallthrough
+	case token.Identifier:
+		offset := 0
+		array := false
+		nxt := p.peak()
+		if nxt.TokenType == token.Pound {
+			p.advancePointer()
+			n := p.next()
+			if n.TokenType != token.Number {
+				return nil, ExpectedError{n, "a numerical offset"}
+			}
+			offset = n.Number
+			array = true
+		}
+		v := Var{
+			Ident:     val,
+			Array:     array,
+			Offset:    offset,
+			AddressOf: addressOf,
+		}
+		return PrimaryVar{v}, nil
+	default:
+		return nil, ExpectedError{val, "a number or identifier"}
+	}
 }
 
 func (p *parser) endOfStream() bool {

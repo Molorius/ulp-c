@@ -138,6 +138,11 @@ var
     : "&"? ident "#" NUMBER
     | "&"? ident
 
+    : "var" ident ";"
+    | "var" ident "=" NUMBER ";"
+    | "var" ident "@" NUMBER ";"
+    | "var" ident "@" NUMBER "=" primary ( "," primary )* ";"
+
 primary
     : NUMBER
     | var
@@ -242,6 +247,7 @@ function_statements
     | return_expr
     | hardware_expr
     | label
+    | variable_declaration
     | empty
 
 asm_statements
@@ -261,22 +267,12 @@ function_declaration
         NUMBER // number of outputs
         "{" asm_statements "}"
 
-global_value
-    : NUMBER
-    | "&" var
-
 global_variable
-    : "extern"? var ";"
-    | var "=" global_value ";"
-
-global_array
-    : "extern"? var "@" NUMBER ;
-    | var "@" "=" ( global_value ( "," global_value )* )? ";"
+    : "extern"? variable_declaration
 
 static_statement
     : function_declaration
     | global_variable
-    | global_array
     | empty
 
 program: static_statement* EOF

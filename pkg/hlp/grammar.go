@@ -37,7 +37,6 @@ type GlobalVar struct {
 	Ident  Token     // the identity of this global variable
 	Array  bool      // true if this is an array (uses the "@" operator)
 	Extern bool      // true if this is tagged with the "extern" modifier
-	Static bool      // true if this is tagged with the "static" modifier
 	Value  []Primary // the initial values
 }
 
