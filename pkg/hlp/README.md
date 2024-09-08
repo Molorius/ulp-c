@@ -120,7 +120,7 @@ A minimal boot function that sets up the stack and jumps to `main()` is provided
 
 Comments are done with `//`.
 ```
-    binary_ops
+binary_ops
     : "+"
     | "-"
     | "|"
@@ -128,19 +128,14 @@ Comments are done with `//`.
     | "<<"
     | ">>"
 
-unary_ops
-    : "&"
-
-array
-    : ident "#" NUMBER
-
 var
     : "&"? ident "#" NUMBER
-    | "&"? ident
 
-    : "var" ident ";"
-    | "var" ident "=" NUMBER ";"
-    | "var" ident "@" NUMBER ";"
+variable_declaration_only
+    : "var" ident "@" NUMBER ";"
+
+variable_declaration
+    : variable_declaration_only
     | "var" ident "@" NUMBER "=" primary ( "," primary )* ";"
 
 primary
@@ -149,12 +144,11 @@ primary
 
 right_ops_expr
     : primary binary_ops primary
-    | unary_ops primary
     | primary
     | primary "[" NUMBER "]"
 
 function_inputs
-    : ( primary ( "," primary )* )?
+    : ( primary? ( "," primary? )* )?
 
 function_outputs
     : var ( "," var )*
@@ -189,7 +183,7 @@ compare_ops
 jump_expr
     : "goto" label
     | "if" primary compare_ops primary "goto" label
-    | "ifOv" var "=" primary bin_ops primary "goto" label
+    | "ifOv" var "=" primary binary_ops primary "goto" label
 
 function_def_input_var
     : ident "@" NUMBER
@@ -248,27 +242,38 @@ function_statements
     | hardware_expr
     | label
     | variable_declaration
+    | STRING // only for assembly statements
     | empty
 
 asm_statements
     : ( string ";" )*
 
+function_attribute_list
+    : "assembly"
+    | "weak"
+    | "require" "=" "(" ident ( "," ident )* ")"
+
+function_attribute
+    : "(" function_attribute_list ")"
+
+function_attributes
+    : "__attribute__" "(" function_attribute ( "," function_attribute )* ")"
+
 function_declaration
-    : ( "noreturn" | "static" )? "func" ident 
+    : "static"? "func" ident 
         "(" function_def_input ")" // define the inputs
         NUMBER // number of outputs
+        function_attributes? // optionally list the attributes
         "{" function_statements* "}"
     : "extern" "func" ident
         "(" function_def_input ")" // define the inputs
         NUMBER // number of outputs
+        function_attributes? // optionally list the attributes
         ";"
-    : "__asm__" "func" ident
-        "(" function_def_input ")" // define the inputs
-        NUMBER // number of outputs
-        "{" asm_statements "}"
 
 global_variable
-    : "extern"? variable_declaration
+    : "extern" variable_declaration_only
+    | "static"? variable_declaration
 
 static_statement
     : function_declaration
