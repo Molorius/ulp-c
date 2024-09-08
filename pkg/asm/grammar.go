@@ -94,6 +94,8 @@ func (s StmntInstr) Size() int {
 		default:
 			return 4
 		}
+	case token.Call:
+		return 8
 	default:
 		return 4
 	}

@@ -43,8 +43,7 @@ func TestJumpr(t *testing.T) {
 
 			move r0, 1
 			st r0, r3, 0
-			move r2, .+2
-			jump print_u16
+			call print_u16
 			`,
 			expect: "1 ",
 		},
@@ -60,8 +59,7 @@ func buildSimpleOutput(ops string) string {
 	s := `
 	move r0, %s
 	st r0, r3, 0
-	move r2, .+2
-	jump print_u16
+	call print_u16
 	`
 	return fmt.Sprintf(s, ops)
 }

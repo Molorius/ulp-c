@@ -4,9 +4,19 @@
 
 ulp-c is a C compiler for the ESP32 ULP coprocessor. It is not yet functional.
 
+# Status
+
+This repository contains multiple compilers. C is compiled to Hlp, Hlp is compiled to assembly, assembly is compiled to binary. Below is the completion status:
 - [X] Assembler
-- [ ] Hlp compiler (intermediate language)
-- [ ] C compiler
+  - [X] Compiles
+  - [ ] Common subexpression compression
+- [ ] Hlp
+  - [ ] Compiles
+  - [ ] Optimizations
+    - [ ] Register allocation
+- [ ] C
+  - [ ] Compiles
+  - [ ] Examples
 
 # Testing
 

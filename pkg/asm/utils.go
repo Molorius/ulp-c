@@ -94,8 +94,7 @@ send_esp.end:
 	st r0, r2, __boot_data_start - send_esp.loop + 3
 	ld r0, r3, 3 // esp_write[1] = param
 	st r0, r2, __boot_data_start - send_esp.loop + 4
-	move r2, .+2 // ulp_mutex_give()
-	jump ulp_mutex_give
+	call ulp_mutex_give // ulp_mutex_give()
 
 	ld r2, r3, 1
 	ld r0, r3, 0
@@ -112,8 +111,7 @@ done:
 	sub r3, r3, 1 // increase stack
 	move r0, 1 // set to DONE
 	st r0, r3, 0
-	move r2, .+2
-	jump send_esp
+	call send_esp
     halt
 
 // void print_u16(uint16_t c)
@@ -129,8 +127,7 @@ print_u16.call:
     st r2, r3, 0 // store constant for send_esp
 	ld r2, r3, 3 // load c
     st r2, r3, 1 // store c for send_esp
-	move r2, .+2 // send_esp()
-    jump send_esp
+	call send_esp // send_esp()
     ld r2, r3, 2 // reload r2
     add r3, r3, 3 // restore stack
     jump r2

@@ -304,6 +304,7 @@ param7 : reg "," primary "," primary
 param8 : primary "," primary "," primary "," primary
 param9 : primary "," primary "," primary "," primary "," primary
 param10: primary "," primary "," primary
+param11: any
 
 ins0     : "add" | "sub" | "and" | "or" | "lsh" | "rsh"
 ins1     : "move"
@@ -316,6 +317,7 @@ ins7     : "adc"
 ins8     : "i2c_rd" | "reg_wr"
 ins9     : "i2c_wr"
 ins10    : "reg_rd"
+ins11    : "call" // pseudo instruction, expands to "move r2, .+2; jump \any"
 ins_none : "stage_rst" | "halt" | "wake"
 
 ins     : ins0 param0

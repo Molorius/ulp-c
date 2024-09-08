@@ -84,6 +84,7 @@ const (
 	I2cWr    // token for i2c_wr instruction
 	RegRd    // token for reg_rd instruction
 	RegWr    // token for reg_wr instruction
+	Call     // token for call pseudo-instruction
 	__instruction_end
 
 	// instruction parameters
@@ -151,6 +152,7 @@ var toToken = map[string]Type{
 	"i2c_wr":     I2cWr,
 	"reg_rd":     RegRd,
 	"reg_wr":     RegWr,
+	"call":       Call,
 	"ov":         Ov,
 	"eq":         Eq,
 	"lt":         Lt,

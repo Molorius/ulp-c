@@ -107,6 +107,10 @@ func (s *StmntInstr) validate() error {
 			{isExpr: true},
 			{isExpr: true},
 		})
+	case token.Call:
+		return validateIns(*s, []validateInsHelperStruct{
+			{isReg: true, isExpr: true},
+		})
 	case token.StageRst, token.Halt, token.Wake:
 		return validateIns(*s, []validateInsHelperStruct{})
 	default:
@@ -165,6 +169,8 @@ func (s StmntInstr) Compile(labels map[string]*Label) ([]byte, error) {
 		return s.compileRegRd()
 	case token.RegWr:
 		return s.compileRegWr()
+	case token.Call:
+		return s.compileCall()
 	default:
 		return nil, GenericTokenError{s.Instruction, "instruction not implemented for compile, please file a bug report"}
 	}
@@ -273,7 +279,7 @@ func (s *StmntInstr) compileJump() ([]byte, error) {
 	if !isReg {
 		sel = 0 // immediate
 	}
-	jumpType := 0 // undonditional jump
+	jumpType := 0 // unconditional jump
 	if len(s.Args) > 1 {
 		argToken := s.Args[1].(ArgJump).Arg
 		switch argToken.TokenType {
@@ -520,6 +526,30 @@ func (s *StmntInstr) compileRegWr() ([]byte, error) {
 	}
 	op := 1
 	return insReg(op, high, low, data, addr), nil
+}
+
+func (s *StmntInstr) compileCall() ([]byte, error) {
+	jumpAddr, isReg, err := evalArgOrReg(s.Args[0], *s.labels)
+	if err != nil {
+		return nil, err
+	}
+	l, ok := (*s.labels)["."]
+	if !ok {
+		return nil, GenericTokenError{s.Instruction, "the \"Here\" token \".\" not set to get offset, please file a bug report"}
+	}
+	retAddr := (l.Value / 4) + 2
+	rdst := 2 // put return address into r2
+	moveIns := insStandard(7, 1, 4, retAddr, 0, rdst)
+	sel := 0 // jump to immediate value
+	if isReg {
+		sel = 1 // jump to register
+		if jumpAddr == 2 {
+			return nil, GenericTokenError{s.Instruction, "call can only be used with registers r0 or r1"}
+		}
+	}
+	jumpIns := insJump(8, 0, 0, sel, jumpAddr)
+	ins := append(moveIns, jumpIns...)
+	return ins, nil
 }
 
 func insStandard(op int, subOp int, aluSel int, imm int, rA int, rB int) []byte {

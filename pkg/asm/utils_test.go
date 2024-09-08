@@ -27,13 +27,11 @@ func TestTheRunnerWithHeaders(t *testing.T) {
 			asm: `
 			move r0, 123
 			st r0, r3, 0
-			move r2, .+2
-			jump print_u16
+			call print_u16
 
 			move r0, 456
 			st r0, r3, 0
-			move r2, .+2
-			jump print_u16
+			call print_u16
 			`,
 			expect: "123 456 ",
 		},
@@ -42,15 +40,23 @@ func TestTheRunnerWithHeaders(t *testing.T) {
 			asm: `
 			move r0, 65
 			st r0, r3, 0
-			move r2, .+2
-			jump print_char
+			call print_char
 
 			move r0, 66
 			st r0, r3, 0
-			move r2, .+2
-			jump print_char
+			call print_char
 			`,
 			expect: "AB",
+		},
+		{
+			name: "register_call",
+			asm: `
+			move r0, 123
+			st r0, r3, 0
+			move r0, print_u16
+			call r0
+			`,
+			expect: "123 ",
 		},
 	}
 	for _, tt := range tests {
