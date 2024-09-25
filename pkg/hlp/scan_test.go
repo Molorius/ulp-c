@@ -135,6 +135,15 @@ func Test_scanner_scanFile(t *testing.T) {
 			hlp:  " \n\t\r",
 			want: []Token{eof()},
 		},
+		{
+			name: "ignore multiline comment",
+			hlp:  "-/*\n\nstill ignore me\n\n*/+",
+			want: []Token{
+				tok(token.Minus),
+				tok(token.Plus),
+				eof(),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

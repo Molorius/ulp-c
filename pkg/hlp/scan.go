@@ -163,11 +163,15 @@ func (s *Scanner) nextLexeme() (string, FileRef) {
 	if !s.isIdentifierByte(c) {
 		s.advancePointer()
 		next, _ := s.peak()
-		// check if we have a "//"
+		// check if we have a "//" or "/*" comment
 		if c == '/' {
 			next, _ := s.peak()
 			if next == '/' {
 				s.skipLine()
+				return s.nextLexeme()
+			}
+			if next == '*' {
+				s.skipComment()
 				return s.nextLexeme()
 			}
 		}
@@ -197,6 +201,26 @@ func (s *Scanner) skipLine() {
 			return
 		}
 		s.advancePointer()
+	}
+}
+
+func (s *Scanner) skipComment() {
+	for {
+		c, eof := s.peak()
+		if eof {
+			return
+		}
+		s.advancePointer()
+		if c == '*' {
+			c, eof := s.peak()
+			if eof {
+				return
+			}
+			s.advancePointer()
+			if c == '/' {
+				return
+			}
+		}
 	}
 }
 
