@@ -16,7 +16,6 @@ type StaticStatementFunction struct {
 	Ident      Token
 	NoReturn   bool
 	Static     bool
-	Extern     bool
 	Parameters []Definition
 	Returns    int
 }
@@ -33,11 +32,22 @@ type StaticStatementArray struct {
 	N     HlpNumber
 }
 
+type VariableDefinition struct {
+	Ident Token
+	Value []Primary // the initial values
+}
+
+type Global interface {
+}
+
 type GlobalVar struct {
-	Ident  Token     // the identity of this global variable
-	Array  bool      // true if this is an array (uses the "@" operator)
-	Extern bool      // true if this is tagged with the "extern" modifier
-	Value  []Primary // the initial values
+	Static bool
+	Def    Definition
+}
+
+type GlobalExtern struct {
+	Ident Token
+	Size  int
 }
 
 type Var struct {
@@ -58,15 +68,15 @@ type PrimaryVar struct {
 	V Var
 }
 
-type Definition interface {
-}
+// type Definition interface {
+// }
 
-type DefinitionInt struct {
-	Ident   Token
-	Initial HlpNumber
-}
+// type DefinitionInt struct {
+// 	Ident   Token
+// 	Initial HlpNumber
+// }
 
-type DefinitionArray struct {
+type Definition struct {
 	Ident   Token
 	Size    int
 	Initial []HlpNumber

@@ -15,9 +15,23 @@ import (
 	"github.com/Molorius/ulp-c/pkg/hlp/token"
 )
 
+type Modifier int
+
+const (
+	ModNone Modifier = iota
+	ModStatic
+	ModExtern
+)
+
 type parser struct {
 	tokens   []Token
 	position int
+}
+
+type Attributes struct {
+	Assembly bool
+	Weak     bool
+	Require  []string
 }
 
 func (p *parser) parseTokens(tokens []Token) ([]StaticStatement, error) {
@@ -58,77 +72,98 @@ func (p *parser) program() ([]StaticStatement, error) {
 	return ret, errs
 }
 
-func (p *parser) statement() (StaticStatement, error) {
-	t := p.peak()
+func (p *parser) statement() (Global, error) {
+	t := p.next()
 	switch t.TokenType {
-	case token.Noreturn, token.Asm, token.Static:
-		p.advancePointer()
-		return p.function(&t, false)
 	case token.Func:
-		return p.function(nil, false)
-	case token.Extern:
-		p.advancePointer()
-		t := p.peak()
-		switch t.TokenType {
+		return p.function(ModNone)
+	case token.Var:
+		return p.globalVariable(ModNone)
+	case token.Static:
+		nxt := p.next()
+		switch nxt.TokenType {
 		case token.Func:
-			return p.function(nil, true)
-		case token.Identifier:
-			return p.globalVariable(true)
+			return p.function(ModStatic)
+		case token.Var:
+			return p.globalVariable(ModStatic)
 		default:
-			return nil, ExpectedError{t, "function or variable definition without a modifier"}
+			return nil, ExpectedError{nxt, "a static function or static variable definition"}
 		}
-	case token.Identifier:
-		return p.globalVariable(false)
+	case token.Extern:
+		nxt := p.next()
+		switch nxt.TokenType {
+		case token.Var:
+			return p.globalVariable(ModExtern)
+		default:
+			return nil, ExpectedError{nxt, "an extern variable definition"}
+		}
 	default:
-		p.advancePointer()
-		return nil, ExpectedError{t, "function or variable definition"}
+		return nil, ExpectedError{t, "a function or variable definition"}
 	}
 }
 
-func (p *parser) function(modifier *Token, extern bool) (StaticStatement, error) {
-	if !p.match(token.Func) {
-		p.advancePointer()
-		return nil, ExpectedError{p.previous(), "\"func\""}
-	}
-	ident, params, returnSize, err := p.functionHeader()
+func (p *parser) function(mod Modifier) (StaticStatement, error) {
+	ident, params, returnSize, attr, err := p.functionHeader()
 	if err != nil {
 		return nil, err
 	}
-	noReturn := false
-	static := false
-	if modifier != nil {
-		switch modifier.TokenType {
-		case token.Noreturn:
-			noReturn = true
-		case token.Static:
-			static = true
-		case token.Asm:
-		default:
-			return nil, GenericTokenError{*modifier, "unknown modifier, please file a bug report"}
-		}
-	}
-
-	if modifier != nil && modifier.TokenType != token.Asm {
-		return StaticStatementFunction{
-			Ident:      ident,
-			NoReturn:   noReturn,
-			Static:     static,
-			Extern:     extern,
-			Parameters: params,
-			Returns:    returnSize,
-		}, nil
-	}
-	asm, err := p.functionAssemblyBody()
-	if err != nil {
-		return nil, err
-	}
-	return StaticStatementAsm{
-		Ident:      ident,
-		Parameters: params,
-		Returns:    returnSize,
-		Asm:        asm,
-	}, nil
+	// TODO parse function body
+	_ = mod
+	_ = ident
+	_ = params
+	_ = returnSize
+	_ = attr
+	return nil, nil
 }
+
+func (p *parser) attribute() (Attributes, error) {
+	return Attributes{}, nil
+}
+
+// func (p *parser) function(modifier *Token, extern bool) (StaticStatement, error) {
+// 	if !p.match(token.Func) {
+// 		p.advancePointer()
+// 		return nil, ExpectedError{p.previous(), "\"func\""}
+// 	}
+// 	ident, params, returnSize, err := p.functionHeader()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	noReturn := false
+// 	static := false
+// 	if modifier != nil {
+// 		switch modifier.TokenType {
+// 		case token.Noreturn:
+// 			noReturn = true
+// 		case token.Static:
+// 			static = true
+// 		case token.Asm:
+// 		default:
+// 			return nil, GenericTokenError{*modifier, "unknown modifier, please file a bug report"}
+// 		}
+// 	}
+
+// 	if modifier != nil && modifier.TokenType != token.Asm {
+// 		return StaticStatementFunction{
+// 			Ident:      ident,
+// 			NoReturn:   noReturn,
+// 			Static:     static,
+// 			Extern:     extern,
+// 			Parameters: params,
+// 			Returns:    returnSize,
+// 		}, nil
+// 	}
+// 	asm, err := p.functionAssemblyBody()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return StaticStatementAsm{
+// 		Ident:      ident,
+// 		Parameters: params,
+// 		Returns:    returnSize,
+// 		Asm:        asm,
+// 	}, nil
+// }
 
 func (p *parser) functionAssemblyBody() ([]string, error) {
 	out := make([]string, 0)
@@ -148,47 +183,48 @@ func (p *parser) functionAssemblyBody() ([]string, error) {
 	return out, nil
 }
 
-func (p *parser) functionHeader() (Token, []Definition, int, error) {
+func (p *parser) functionHeader() (Token, []Definition, int, Attributes, error) {
 	ident := p.next()
 	if ident.TokenType != token.Identifier {
-		return Token{}, nil, 0, ExpectedError{ident, "name of a function"}
+		return Token{}, nil, 0, Attributes{}, ExpectedError{ident, "name of a function"}
 	}
 	params, err := p.functionParameters()
 	if err != nil {
-		return Token{}, nil, 0, err
+		return Token{}, nil, 0, Attributes{}, err
 	}
 	_ = params
 	returnSize := p.next()
 	if returnSize.TokenType != token.Number {
-		return Token{}, nil, 0, ExpectedError{returnSize, "a number for the return amount"}
+		return Token{}, nil, 0, Attributes{}, ExpectedError{returnSize, "a number for the return amount"}
 	}
-	return ident, params, returnSize.Number, nil
+	t := p.peak()
+	var attr Attributes
+	if t.TokenType == token.Attribute {
+		p.advancePointer()
+		attr, err = p.attribute()
+		if err != nil {
+			return Token{}, nil, 0, Attributes{}, err
+		}
+	}
+	return ident, params, returnSize.Number, attr, nil
 }
 
-func (p *parser) functionParameter() (Definition, error) {
+func (p *parser) variableDeclaration() (Definition, error) {
 	ident := p.peak()
 	if !p.match(token.Identifier) {
-		return nil, ExpectedError{p.peak(), "a parameter name"}
+		return Definition{}, ExpectedError{p.peak(), "a parameter name"}
 	}
-	if p.match(token.At) {
-		num := p.peak()
-		if !p.match(token.Number) {
-			return nil, ExpectedError{p.peak(), "an integer size for the array"}
-		}
-		return DefinitionArray{
-			Ident: ident,
-			Size:  num.Number,
-		}, nil
-	} else {
-		t := p.peak()
-		switch t.TokenType {
-		case token.RightParen, token.Comma:
-		default:
-			p.advancePointer()
-			return nil, ExpectedError{t, "a \")\", \"@\", or \",\""}
-		}
-		return DefinitionInt{Ident: ident}, nil
+	if !p.match(token.At) {
+		return Definition{}, ExpectedError{p.peak(), "an at sign @"}
 	}
+	num := p.peak()
+	if !p.match(token.Number) {
+		return Definition{}, ExpectedError{p.peak(), "an integer size for the array"}
+	}
+	return Definition{
+		Ident: ident,
+		Size:  num.Number,
+	}, nil
 }
 
 func (p *parser) functionParameters() ([]Definition, error) {
@@ -199,7 +235,7 @@ func (p *parser) functionParameters() ([]Definition, error) {
 
 	for p.match(token.Identifier) {
 		p.reversePointer()
-		d, err := p.functionParameter()
+		d, err := p.variableDeclaration()
 		if err != nil {
 			return nil, err
 		}
@@ -217,59 +253,91 @@ func (p *parser) functionParameters() ([]Definition, error) {
 	return defs, nil
 }
 
-func (p *parser) globalVariable(extern bool) (StaticStatement, error) {
-	_ = extern
-	ident := p.peak()
-	if ident.TokenType != token.Identifier {
-		p.advancePointer()
-		return nil, ExpectedError{ident, "an identifier"}
+func (p *parser) globalVariable(mod Modifier) (Global, error) {
+	decl, err := p.variableDeclaration()
+	if err != nil {
+		return nil, err
 	}
-	p.advancePointer()
-	nxt := p.peak()
-	gVar := GlobalVar{
-		Ident:  ident,
-		Array:  false,
-		Extern: extern,
-		Value:  make([]Primary, 0),
-	}
-
-	switch nxt.TokenType {
-	case token.Semicolon:
-		return nxt, nil
-	case token.Equal:
-		if extern {
-			return nil, ExpectedError{nxt, "a semicolon \";\""}
+	static := false
+	switch mod {
+	case ModExtern:
+		v := GlobalExtern{
+			Ident: decl.Ident,
+			Size:  decl.Size,
 		}
-		p.advancePointer()
-		if p.match(token.Number) {
-			n := p.previous()
-			gVar.Value = append(gVar.Value, n.Number)
-		} else if p.match(token.Ampersand) {
-
-		} else {
-			return nil, GenericTokenError{p.peak(), "a value"}
+		if !p.match(token.Semicolon) {
+			return nil, ExpectedError{p.previous(), "semicolon"}
 		}
-	case token.At:
-		if !p.match(token.Number) {
-			return nil, ExpectedError{p.peak(), "a number for the size of the array"}
+		return v, nil
+	case ModStatic:
+		static = true
+		fallthrough
+	case ModNone:
+		v := GlobalVar{
+			Static: static,
+			Def:    decl,
 		}
-		n := p.previous()
-		_ = n
-		gVar.Array = true
-
-		nxt2 := p.peak()
-		switch nxt2.TokenType {
-		case token.Semicolon:
-
-		case token.Equal:
-
-		default:
-			return nil, ExpectedError{nxt2, "a semicolon or equals"}
+		// TODO: parse initial values
+		if !p.match(token.Semicolon) {
+			return nil, ExpectedError{p.previous(), "semicolon"}
 		}
+		return v, nil
 	default:
-		return nil, UnknownTokenError{nxt}
+		return nil, GenericTokenError{p.previous(), "unknown modifier, please file a bug report"}
 	}
-	return gVar, nil
+	// _ = mod
+	// ident := p.peak()
+	// if ident.TokenType != token.Identifier {
+	// 	p.advancePointer()
+	// 	return nil, ExpectedError{ident, "an identifier"}
+	// }
+	// p.advancePointer()
+	// nxt := p.peak()
+	// gVar := GlobalVar{
+	// 	mod
+	// 	// Ident: ident,
+	// 	// Array: false,
+	// 	// // Extern: extern,
+	// 	// Value: make([]Primary, 0),
+	// }
+
+	// switch nxt.TokenType {
+	// case token.Semicolon:
+	// 	return nxt, nil
+	// // case token.Equal:
+	// // 	// if extern {
+	// // 	// 	return nil, ExpectedError{nxt, "a semicolon \";\""}
+	// // 	// }
+	// // 	p.advancePointer()
+	// // 	if p.match(token.Number) {
+	// // 		n := p.previous()
+	// // 		gVar.Value = append(gVar.Value, n.Number)
+	// // 	} else if p.match(token.Ampersand) {
+
+	// // 	} else {
+	// // 		return nil, GenericTokenError{p.peak(), "a value"}
+	// // 	}
+	// case token.At:
+	// 	if !p.match(token.Number) {
+	// 		return nil, ExpectedError{p.peak(), "a number for the size of the array"}
+	// 	}
+	// 	n := p.previous()
+	// 	_ = n
+	// 	gVar.Array = true
+
+	// 	nxt2 := p.peak()
+	// 	switch nxt2.TokenType {
+	// 	case token.Semicolon:
+
+	// 	case token.Equal:
+
+	// 	default:
+	// 		return nil, ExpectedError{nxt2, "a semicolon or equals"}
+	// 	}
+	// default:
+	// 	return nil, UnknownTokenError{nxt}
+	// }
+	// return gVar, nil
 }
 
 func (p *parser) ArrayValues() []Primary {

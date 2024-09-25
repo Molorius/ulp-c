@@ -52,11 +52,12 @@ const (
 
 	// other
 
-	Asm      // token for __asm__ function modifier
-	Noreturn // token for noreturn function modifier
-	Func     // token for function definition
-	Static   // token for static global variable modifier
-	Extern   // token for extern modifier
+	Var       // token for variable definition
+	VarSet    // token for variable definition with initial values set
+	Func      // token for function definition
+	Static    // token for static global variable modifier
+	Extern    // token for extern modifier
+	Attribute // token for function __attribute__ list
 
 	// hardware instructions
 
@@ -80,48 +81,49 @@ const (
 )
 
 var toToken = map[string]Type{
-	";":        Semicolon,
-	":":        Colon,
-	"&":        Ampersand,
-	"=":        Equal,
-	"(":        LeftParen,
-	")":        RightParen,
-	"[":        LeftBracket,
-	"]":        RightBracket,
-	"{":        LeftBrace,
-	"}":        RightBrace,
-	"@":        At,
-	"#":        Pound,
-	",":        Comma,
-	"goto":     Goto,
-	"if":       If,
-	"ifEq":     IfEq,
-	"ifOv":     IfOv,
-	"+":        Plus,
-	"-":        Minus,
-	"|":        Or,
-	"<<":       Lsh,
-	">>":       Rsh,
-	"==":       EqualEqual,
-	"!=":       NotEqual,
-	">":        Greater,
-	"<":        Less,
-	">=":       GreaterEqual,
-	"<=":       LessEqual,
-	"__asm__":  Asm,
-	"noreturn": Noreturn,
-	"func":     Func,
-	"static":   Static,
-	"extern":   Extern,
-	"reg_wr":   RegWr,
-	"reg_rd":   RegRd,
-	"wait":     Wait,
-	"i2c_wr":   I2cWr,
-	"i2c_rd":   I2cRd,
-	"halt":     Halt,
-	"wake":     Wake,
-	"sleep":    Sleep,
-	"adc":      Adc,
+	";":             Semicolon,
+	":":             Colon,
+	"&":             Ampersand,
+	"=":             Equal,
+	"(":             LeftParen,
+	")":             RightParen,
+	"[":             LeftBracket,
+	"]":             RightBracket,
+	"{":             LeftBrace,
+	"}":             RightBrace,
+	"@":             At,
+	"#":             Pound,
+	",":             Comma,
+	"goto":          Goto,
+	"if":            If,
+	"ifEq":          IfEq,
+	"ifOv":          IfOv,
+	"+":             Plus,
+	"-":             Minus,
+	"|":             Or,
+	"<<":            Lsh,
+	">>":            Rsh,
+	"==":            EqualEqual,
+	"!=":            NotEqual,
+	">":             Greater,
+	"<":             Less,
+	">=":            GreaterEqual,
+	"<=":            LessEqual,
+	"var":           Var,
+	"var_set":       VarSet,
+	"func":          Func,
+	"static":        Static,
+	"extern":        Extern,
+	"__attribute__": Attribute,
+	"reg_wr":        RegWr,
+	"reg_rd":        RegRd,
+	"wait":          Wait,
+	"i2c_wr":        I2cWr,
+	"i2c_rd":        I2cRd,
+	"halt":          Halt,
+	"wake":          Wake,
+	"sleep":         Sleep,
+	"adc":           Adc,
 }
 var toString map[Type]string
 

@@ -129,18 +129,15 @@ binary_ops
     | ">>"
 
 var
-    : "&"? ident "#" NUMBER
-
-variable_declaration_only
-    : "var" ident "@" NUMBER ";"
+    : ident "#" NUMBER
 
 variable_declaration
-    : variable_declaration_only
-    | "var" ident "@" NUMBER "=" primary ( "," primary )* ";"
+    : "var" var_def ";"
 
 primary
     : NUMBER
-    | var
+    | "&"? var
+    | "&" ident // address of a function
 
 right_ops_expr
     : primary binary_ops primary
@@ -185,12 +182,11 @@ jump_expr
     | "if" primary compare_ops primary "goto" label
     | "ifOv" var "=" primary binary_ops primary "goto" label
 
-function_def_input_var
+var_def
     : ident "@" NUMBER
-    | ident
 
 function_def_input
-    : ( function_def_input_var ( "," function_def_input_var )* )?
+    : ( var_def ( "," var_def )* )?
 
 reg_wr_expr
     : "reg_wr" "(" NUMBER "," NUMBER "," NUMBER "," NUMBER ")" ";"
@@ -265,15 +261,11 @@ function_declaration
         NUMBER // number of outputs
         function_attributes? // optionally list the attributes
         "{" function_statements* "}"
-    : "extern" "func" ident
-        "(" function_def_input ")" // define the inputs
-        NUMBER // number of outputs
-        function_attributes? // optionally list the attributes
-        ";"
 
 global_variable
-    : "extern" variable_declaration_only
+    : "extern" variable_declaration
     | "static"? variable_declaration
+    | "static"? "var_set" var_def "=" primary ( "," primary )* ";"
 
 static_statement
     : function_declaration

@@ -32,5 +32,5 @@ type ExpectedError struct {
 }
 
 func (e ExpectedError) Error() string {
-	return fmt.Sprintf("%s: got \"%s\", expected a %s here", e.token.Ref, e.token.Lexeme, e.expected)
+	return fmt.Sprintf("%s: got \"%s\", expected %s here", e.token.Ref, e.token.Lexeme, e.expected)
 }
