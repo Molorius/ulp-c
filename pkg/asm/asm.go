@@ -16,7 +16,7 @@ type Assembler struct {
 	Compiler Compiler
 }
 
-func (asm *Assembler) BuildFile(content string, name string, reservedBytes int) ([]byte, error) {
+func (asm *Assembler) BuildFile(content string, name string, reservedBytes int, reduce bool) ([]byte, error) {
 	s := scanner{}
 	tokens, err := s.scanFile(content, name)
 	if err != nil {
@@ -28,14 +28,14 @@ func (asm *Assembler) BuildFile(content string, name string, reservedBytes int) 
 		return nil, errors.Join(fmt.Errorf("error while parsing"), err)
 	}
 	asm.Compiler = Compiler{}
-	bin, err := asm.Compiler.CompileToBin(stmnts, reservedBytes)
+	bin, err := asm.Compiler.CompileToBin(stmnts, reservedBytes, reduce)
 	if err != nil {
 		return nil, err
 	}
 	return bin, nil
 }
 
-func (asm *Assembler) BuildAssembly(content string, name string, reservedBytes int) ([]byte, error) {
+func (asm *Assembler) BuildAssembly(content string, name string, reservedBytes int, reduce bool) ([]byte, error) {
 	s := scanner{}
 	tokens, err := s.scanFile(content, name)
 	if err != nil {
@@ -47,7 +47,7 @@ func (asm *Assembler) BuildAssembly(content string, name string, reservedBytes i
 		return nil, errors.Join(fmt.Errorf("error while parsing"), err)
 	}
 	asm.Compiler = Compiler{}
-	bin, err := asm.Compiler.CompileToAsm(stmnts, reservedBytes)
+	bin, err := asm.Compiler.CompileToAsm(stmnts, reservedBytes, reduce)
 	if err != nil {
 		return nil, err
 	}

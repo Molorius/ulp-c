@@ -19,6 +19,7 @@ const flagReservedBytes = "reserved"
 const flagOutName = "out"
 const flagSize = "size"
 const flagOutputAssembly = "output_assembly"
+const flagReduce = "reduce"
 
 // asmCmd represents the asm command
 var asmCmd = &cobra.Command{
@@ -52,18 +53,19 @@ This will generate a file out.bin that can be executed by ulp_load_binary().`,
 		var bin []byte
 		assembler := asm.Assembler{}
 		reservedBytes, _ := cmd.Flags().GetInt(flagReservedBytes)
+		reduce, _ := cmd.Flags().GetBool(flagReduce)
 
 		outputAssembly, _ := cmd.Flags().GetBool(flagOutputAssembly)
 		if outputAssembly {
 			// compile to assembly (binary with labels)
-			bin, err = assembler.BuildAssembly(content, filename, reservedBytes)
+			bin, err = assembler.BuildAssembly(content, filename, reservedBytes, reduce)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
 		} else {
 			// compile to a binary
-			bin, err = assembler.BuildFile(content, filename, reservedBytes)
+			bin, err = assembler.BuildFile(content, filename, reservedBytes, reduce)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -99,4 +101,5 @@ func init() {
 	asmCmd.Flags().StringP(flagOutName, "o", "out.bin", "name of the output file")
 	asmCmd.Flags().BoolP(flagSize, "s", false, "print the size of all sections")
 	asmCmd.Flags().Bool(flagOutputAssembly, false, "compile to ulp assembly rather than a binary")
+	asmCmd.Flags().Bool(flagReduce, false, "reduce similar statements to jumps, unsafe")
 }

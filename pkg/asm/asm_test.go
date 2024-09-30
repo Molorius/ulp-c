@@ -50,7 +50,7 @@ func TestJumpr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RunTestWithHeader(t, tt.asm, tt.expect)
+			RunTestWithHeader(t, tt.asm, tt.expect, true)
 		})
 	}
 }
@@ -98,7 +98,7 @@ func TestOrderOfOperations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RunTestWithHeader(t, buildSimpleOutput(tt.ops), tt.expect)
+			RunTestWithHeader(t, buildSimpleOutput(tt.ops), tt.expect, true)
 		})
 	}
 }

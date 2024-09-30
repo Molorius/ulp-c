@@ -19,6 +19,8 @@ import (
 type Stmnt interface {
 	Size() int // the size of this statement after compilation, in bytes
 	Compile(map[string]*Label) ([]byte, error)
+	CanReduce() bool     // can this statement be reduced?
+	IsFinalReduce() bool // is this a final statement (a jump) in a reduction?
 }
 
 type StmntDirective struct {
@@ -31,6 +33,14 @@ func (s StmntDirective) Size() int {
 
 func (s StmntDirective) Compile(labels map[string]*Label) ([]byte, error) {
 	return nil, nil
+}
+
+func (s StmntDirective) CanReduce() bool {
+	return false
+}
+
+func (s StmntDirective) IsFinalReduce() bool {
+	return false
 }
 
 type StmntGlobal struct {
@@ -47,6 +57,14 @@ func (s StmntGlobal) Compile(labels map[string]*Label) ([]byte, error) {
 
 func (s StmntGlobal) String() string {
 	return fmt.Sprintf(".global(%s)", s.Label)
+}
+
+func (s StmntGlobal) CanReduce() bool {
+	return false
+}
+
+func (s StmntGlobal) IsFinalReduce() bool {
+	return false
 }
 
 type StmntInt struct {
@@ -75,6 +93,14 @@ func (s StmntInt) String() string {
 	return fmt.Sprintf("int{%s}", s.Args)
 }
 
+func (s StmntInt) CanReduce() bool {
+	return false
+}
+
+func (s StmntInt) IsFinalReduce() bool {
+	return false
+}
+
 type StmntInstr struct {
 	Instruction Token
 	Args        []Arg
@@ -83,6 +109,40 @@ type StmntInstr struct {
 
 func (s StmntInstr) String() string {
 	return fmt.Sprintf("{%s %s}", s.Instruction, s.Args)
+}
+
+// Is the instruction reducable? Does not include arguments.
+func (s StmntInstr) reducableIns() bool {
+	t := s.Instruction.TokenType
+	if t.IsInstruction() {
+		if t == token.Jumpr || t == token.Jumps {
+			return false // jumpr and jumps can't reduce
+		}
+		return true // other instructions can reduce
+	}
+	return false // all other token types can't reduce
+}
+
+func (s StmntInstr) CanReduce() bool {
+	if s.reducableIns() {
+		// check every argument to see if it uses a relative
+		for _, arg := range s.Args {
+			if arg.IsRelative() { // if any are relative
+				return false // then no reducing!
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func (s StmntInstr) IsFinalReduce() bool {
+	// the only finishing instruction is a definite jump
+	if s.Instruction.TokenType == token.Jump {
+		isDefiniteJump := len(s.Args) <= 1 // "jump x, ov" and "jump x, eq" can fallthrough
+		return isDefiniteJump
+	}
+	return false
 }
 
 func (s StmntInstr) Size() int {
@@ -117,10 +177,19 @@ func (s StmntLabel) String() string {
 	return fmt.Sprintf("Label(%s)", s.Label)
 }
 
+func (s StmntLabel) CanReduce() bool {
+	return false
+}
+
+func (s StmntLabel) IsFinalReduce() bool {
+	return false
+}
+
 // expressions
 
 type Expr interface {
 	Evaluate(map[string]*Label) (int, error)
+	IsRelative() bool
 }
 
 type ExprBinary struct {
@@ -164,6 +233,10 @@ func (exp ExprBinary) String() string {
 	return fmt.Sprintf("(%s%s%s)", exp.Left, exp.Operator, exp.Right)
 }
 
+func (exp ExprBinary) IsRelative() bool {
+	return exp.Left.IsRelative() || exp.Right.IsRelative()
+}
+
 type ExprUnary struct {
 	Expression Expr
 	Operator   Token
@@ -184,6 +257,10 @@ func (e ExprUnary) Evaluate(labels map[string]*Label) (int, error) {
 
 func (exp ExprUnary) String() string {
 	return fmt.Sprintf("(%s%s)", exp.Operator, exp.Expression)
+}
+
+func (exp ExprUnary) IsRelative() bool {
+	return exp.Expression.IsRelative()
 }
 
 type ExprLiteral struct {
@@ -214,12 +291,17 @@ func (exp ExprLiteral) String() string {
 	return exp.Operator.String()
 }
 
+func (exp ExprLiteral) IsRelative() bool {
+	return exp.Operator.TokenType == token.Here
+}
+
 // arguments
 
 type Arg interface {
 	IsReg() bool
 	IsJump() bool
 	IsExpr() bool
+	IsRelative() bool
 }
 
 type ArgReg struct {
@@ -235,6 +317,10 @@ func (a ArgReg) IsJump() bool {
 }
 
 func (a ArgReg) IsExpr() bool {
+	return false
+}
+
+func (a ArgReg) IsRelative() bool {
 	return false
 }
 
@@ -277,6 +363,10 @@ func (a ArgJump) IsExpr() bool {
 	return false
 }
 
+func (a ArgJump) IsRelative() bool {
+	return false // we can fallthrough and still continue
+}
+
 type ArgExpr struct {
 	Expr Expr
 }
@@ -291,4 +381,8 @@ func (a ArgExpr) IsJump() bool {
 
 func (a ArgExpr) IsExpr() bool {
 	return true
+}
+
+func (a ArgExpr) IsRelative() bool {
+	return a.Expr.IsRelative()
 }

@@ -68,6 +68,67 @@ This assembler uses the `.bss` directive to put data in the `.header.bss` sectio
 
 This assembler allocates the remainder of the reserved space for a stack at the end of the `.header.bss` section. The label "__stack_start" is placed at the start, "__stack_end" at the end.
 
+# Common code reduction
+
+Quite often there are common series of instructions that can be jumped to in order to save space. Given the following subroutines:
+```asm
+  func0:
+ld r0, r0, data0
+mv r1, 0xFFFF
+st r1, r0, 0
+jump r2
+
+  func1:
+ld r0, r0, data1
+mv r1, 0xFFFF
+st r1, r0, 0
+jump r2
+```
+
+We can reduce the code to:
+```asm
+  func0:
+ld r0, r0, data0
+  common_series:
+mv r1, 0xFFFF
+st r1, r0, 0
+jump r2
+
+  func1:
+ld r0, r0, data1
+jump common_series
+```
+
+Logically this can be done if:
+1. We do not use relative arguments (so no `.`). 
+2. All instructions are exactly identical. 
+3. The series of instructions ends in a definite `jump`.
+4. The series is only instructions. No labels, no data.
+
+This is unsafe if code outside of that series attempts to
+access within the series:
+```asm
+  unsafe:
+jump func1+2
+```
+
+This cannot be statically checked. As a result, the option to
+reduce common instructions is behind the `--reduce` flag.
+
+While this optimization is logically correct, this may interfere
+with time-sensitive code. To circumvent this, you can add `.`
+into an argument before a `jump` to prevent the optimization:
+```asm
+  critical:
+add r0, r0, 1
+add r1, r1, 2
+// other time sensitive code
+// ...
+// same as "add r0, r0, 10"
+add r0, r0, 10 + . - . // prevents reducing
+jump r2
+```
+
 # Differences
 
 There are several differences between ulp-asm and esp32ulp-elf-as.

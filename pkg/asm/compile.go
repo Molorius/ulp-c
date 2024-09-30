@@ -10,6 +10,8 @@ package asm
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"sort"
 
 	"github.com/Molorius/ulp-c/pkg/asm/token"
 )
@@ -25,6 +27,82 @@ type Section struct {
 	Size   int // size in bytes
 	Bin    []byte
 	Offset int // offset from start of program
+}
+
+type ReduceTrie struct {
+	Indexes   []int  // indexes that uses this statement
+	Depth     int    // depth of this node
+	Instr     string // the string version of this instruction
+	TokenType token.Type
+	Children  map[string]*ReduceTrie
+	Parent    *ReduceTrie
+	Final     bool // if this is a final node (a jump)
+}
+
+func (r *ReduceTrie) AddChild(index int, instruction StmntInstr) (*ReduceTrie, error) {
+	name := instruction.String()
+	child, ok := r.Children[name]
+	if ok { // if this child is already created
+		child.Indexes = append(child.Indexes, index)
+		return child, nil
+	}
+	indexes := make([]int, 0)
+	indexes = append(indexes, index)
+	child = &ReduceTrie{
+		Indexes:   indexes,
+		Depth:     r.Depth + 1,
+		Instr:     name,
+		TokenType: instruction.Instruction.TokenType,
+		Children:  make(map[string]*ReduceTrie),
+		Parent:    r,
+		Final:     instruction.IsFinalReduce(),
+	}
+	r.Children[name] = child
+	return child, nil
+}
+
+func (r *ReduceTrie) Value() int {
+	if !r.Final {
+		return -1 // not a final statement, no value
+	}
+	initial := r.Depth * len(r.Indexes) // number of instructions used at start
+	jumps := len(r.Indexes) - 1         // number of jumps we will use instead
+	final := r.Depth + jumps            // the final number of instructions
+	return initial - final
+}
+
+func (r *ReduceTrie) Max() (*ReduceTrie, int, error) {
+	currentMax := r.Value()
+	currentNode := r
+	for _, c := range r.Children {
+		checkNode, checkMax, err := c.Max()
+		if err != nil {
+			return nil, 0, err
+		}
+		if checkMax > currentMax {
+			currentMax = checkMax
+			currentNode = checkNode
+		}
+	}
+	if currentMax < 0 {
+		return nil, -1, nil
+	}
+	return currentNode, currentMax, nil
+}
+
+type ReduceIndex struct {
+	Index int         // the starting index
+	Node  *ReduceTrie // the last node that this uses
+}
+
+// add the next instruction to the associated trie
+func (r *ReduceIndex) Next(instruction StmntInstr) error {
+	child, err := r.Node.AddChild(r.Index, instruction)
+	if err != nil {
+		return err
+	}
+	r.Node = child
+	return nil
 }
 
 func (s *Section) Validate(name string) error {
@@ -48,7 +126,7 @@ type Compiler struct {
 	CurrentSection *Section
 }
 
-func (c *Compiler) compile(program []Stmnt, reservedBytes int) error {
+func (c *Compiler) compile(program []Stmnt, reservedBytes int, reduce bool) error {
 	c.program = program
 	c.Labels = make(map[string]*Label)
 	c.preLabels = make(map[string]int)
@@ -58,6 +136,13 @@ func (c *Compiler) compile(program []Stmnt, reservedBytes int) error {
 	c.Data = Section{}
 	c.Bss = Section{}
 	c.Stack = Section{}
+
+	if reduce {
+		err := c.reduceCommon(0)
+		if err != nil {
+			return err
+		}
+	}
 	err := c.genPreLabels()
 	if err != nil {
 		return err
@@ -78,8 +163,8 @@ func (c *Compiler) compile(program []Stmnt, reservedBytes int) error {
 	return err
 }
 
-func (c *Compiler) CompileToBin(program []Stmnt, reservedBytes int) ([]byte, error) {
-	err := c.compile(program, reservedBytes)
+func (c *Compiler) CompileToBin(program []Stmnt, reservedBytes int, reduce bool) ([]byte, error) {
+	err := c.compile(program, reservedBytes, reduce)
 	if err != nil {
 		return nil, err
 	}
@@ -87,15 +172,19 @@ func (c *Compiler) CompileToBin(program []Stmnt, reservedBytes int) ([]byte, err
 	return bin, err
 }
 
-func (c *Compiler) CompileToAsm(program []Stmnt, reservedBytes int) ([]byte, error) {
+func (c *Compiler) CompileToAsm(program []Stmnt, reservedBytes int, reduce bool) ([]byte, error) {
 	// find all of the addresses we need
-	err := c.compile(program, reservedBytes)
+	err := c.compile(program, reservedBytes, reduce)
 	if err != nil {
 		return nil, err
 	}
-	addresses := make(map[int]*Label)
+	addresses := make(map[int][]*Label)
 	for _, label := range c.Labels {
-		addresses[label.Value] = label
+		_, ok := addresses[label.Value]
+		if !ok {
+			addresses[label.Value] = make([]*Label, 0)
+		}
+		addresses[label.Value] = append(addresses[label.Value], label)
 	}
 	s := ".text\n"
 	start := 0
@@ -121,13 +210,19 @@ func (c *Compiler) CompileToAsm(program []Stmnt, reservedBytes int) ([]byte, err
 	return []byte(s), nil
 }
 
-func (c *Compiler) buildAsm(start int, s string, bin []byte, addr map[int]*Label) string {
+func (c *Compiler) buildAsm(start int, s string, bin []byte, addr map[int][]*Label) string {
 	for pos, b := range bin {
 		i := start + pos
 		label, ok := addr[i]
 		if ok {
-			if label.Global {
-				s += fmt.Sprintf(".global %s\n%s:\n", label.Name, label.Name)
+			for _, l := range label {
+				if l.Name == "." {
+					continue
+				}
+				if l.Global {
+					s += fmt.Sprintf(".global %s\n", l.Name)
+				}
+				s += fmt.Sprintf("%s:\n", l.Name)
 			}
 		}
 		s += fmt.Sprintf("    .byte 0x%02X\n", b)
@@ -253,6 +348,97 @@ func (c *Compiler) genGlobals() error {
 		}
 	}
 	return nil
+}
+
+func (c *Compiler) buildTrie() (ReduceTrie, error) {
+	// create the root node
+	root := ReduceTrie{
+		Indexes:   make([]int, 0), // empty at root
+		Depth:     0,
+		TokenType: token.Unknown,
+		Children:  make(map[string]*ReduceTrie),
+	}
+	// create the running list of indexes
+	indexes := make([]*ReduceIndex, 0)
+	for i, stmnt := range c.program {
+		if !stmnt.CanReduce() {
+			// wipe the indexes and continue
+			indexes = make([]*ReduceIndex, 0)
+			continue
+		}
+		// create the new index
+		newIndex := &ReduceIndex{
+			Index: i,
+			Node:  &root,
+		}
+		indexes = append(indexes, newIndex)
+		instr, ok := stmnt.(StmntInstr)
+		if !ok {
+			return root, fmt.Errorf("could not cast internally to StmntInstr, please file a bug report")
+		}
+		// process each index so far
+		for _, ind := range indexes {
+			ind.Next(instr)
+		}
+		// wipe the indexes after a jump
+		if stmnt.IsFinalReduce() {
+			indexes = make([]*ReduceIndex, 0)
+			continue
+		}
+	}
+	return root, nil
+}
+
+func (c *Compiler) reduceCommon(depth int) error {
+	root, err := c.buildTrie()
+	if err != nil {
+		return err
+	}
+	// find the best sequence for reduction
+	bestNode, bestVal, err := root.Max()
+	if err != nil {
+		return err
+	}
+	if bestVal <= 0 { // cannot reduce further, exit
+		return nil
+	}
+
+	// prepare the new statements
+	tok := Token{
+		TokenType: token.Identifier,
+		Lexeme:    fmt.Sprintf("__asm_reduction.%d", depth),
+	}
+	jumpArg := ArgExpr{
+		Expr: ExprLiteral{
+			Operator: tok,
+		},
+	}
+	jumpStmnt := StmntInstr{
+		Instruction: Token{
+			TokenType: token.Jump,
+		},
+		Args: []Arg{jumpArg},
+	}
+	labelStmnt := StmntLabel{
+		Label: tok,
+	}
+	replace := bestNode.Indexes
+	// sort in reverse order
+	sort.Sort(sort.Reverse(sort.IntSlice(replace)))
+	// keep the first instance
+	keep := replace[len(replace)-1]
+	// replace the rest
+	replace = replace[:len(replace)-1]
+	for _, ind := range replace {
+		before := c.program[:ind]
+		after := c.program[ind+bestNode.Depth:]
+		// remove the instructions
+		c.program = append(before, after...)
+		// add in the jump instruction
+		c.program = slices.Insert[[]Stmnt, Stmnt](c.program, ind, jumpStmnt)
+	}
+	c.program = slices.Insert[[]Stmnt, Stmnt](c.program, keep, labelStmnt)
+	return c.reduceCommon(depth + 1) // iterate!
 }
 
 func (c *Compiler) compileAll() error {

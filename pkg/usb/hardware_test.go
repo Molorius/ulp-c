@@ -15,6 +15,7 @@ import (
 )
 
 const reservedBytes = 8176
+const reduce = true
 
 func TestSimpleHardware(t *testing.T) {
 	h := usb.Hardware{}
@@ -29,7 +30,7 @@ func TestSimpleHardware(t *testing.T) {
 
 	// compile binary
 	assembler := asm.Assembler{}
-	bin, err := assembler.BuildFile(assembly, "testSimpleHardware.S", reservedBytes)
+	bin, err := assembler.BuildFile(assembly, "testSimpleHardware.S", reservedBytes, reduce)
 	if err != nil {
 		t.Fatalf("Failed to compile: %s", err)
 	}
@@ -77,7 +78,7 @@ mutex:
 
 	// compile binary
 	assembler := asm.Assembler{}
-	bin, err := assembler.BuildFile(assembly, "testSimpleHardware.S", reservedBytes)
+	bin, err := assembler.BuildFile(assembly, "testSimpleHardware.S", reservedBytes, reduce)
 	if err != nil {
 		t.Fatalf("Failed to compile: %s", err)
 	}

@@ -151,24 +151,17 @@ const TEST_POSTLUDE = `
 jump done
 `
 
-func CompileTestWithHeader(asm string) ([]byte, error) {
-	a := Assembler{}
-	filename := "test.S"
-	reserved := 8176
-	return a.BuildFile(asm, filename, reserved)
-}
-
-func RunTestWithHeader(t *testing.T, asm string, expect string) {
+func RunTestWithHeader(t *testing.T, asm string, expect string, reduce bool) {
 	content := TEST_PRELUDE + asm + TEST_POSTLUDE
-	RunTest(t, content, expect)
+	RunTest(t, content, expect, reduce)
 }
 
-func RunTest(t *testing.T, asm string, expect string) {
+func RunTest(t *testing.T, asm string, expect string, reduce bool) {
 	// compile the binary
 	a := Assembler{}
 	filename := "test.S"
 	reserved := 8176
-	bin, err := a.BuildFile(asm, filename, reserved)
+	bin, err := a.BuildFile(asm, filename, reserved, reduce)
 	if err != nil {
 		t.Fatalf("Failed to compile: %s", err)
 	}
