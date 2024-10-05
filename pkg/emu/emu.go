@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"testing"
 )
 
 type UlpEmu struct {
@@ -266,6 +267,11 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 		u.Wake = true
 		u.IP++
 		u.cycles += 6 // 2 execute 4 fetch
+	case 4: // wait
+		imm := bitRead(instr, 0, 16)
+		u.IP++
+		u.cycles += 6           // 2 execute 4 fetch
+		u.cycles += uint64(imm) // add on the wait cycles
 	default:
 		return fmt.Errorf("unknown operation %v", op)
 	}
@@ -278,7 +284,7 @@ func bitRead(num uint32, offset uint, size uint) uint32 {
 	return val & mask
 }
 
-func (u *UlpEmu) RunWithSystem(maxCycles uint64) (string, error) {
+func (u *UlpEmu) RunWithSystem(maxCycles uint64, t *testing.T) (string, error) {
 	out := ""
 	prev := uint32(0)
 	for {
@@ -298,6 +304,9 @@ func (u *UlpEmu) RunWithSystem(maxCycles uint64) (string, error) {
 			case 0: // ack
 				break
 			case 1: // done
+				if t != nil {
+					t.Logf("%d cycles\r\n", u.cycles)
+				}
 				return out, nil
 			case 2: // printU16
 				out += fmt.Sprintf("%d ", param)

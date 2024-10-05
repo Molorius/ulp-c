@@ -191,7 +191,7 @@ func RunTest(t *testing.T, asm string, expect string, reduce bool) {
 		if err != nil {
 			t.Fatalf("Loading binary failed: %s", err)
 		}
-		got, err := u.RunWithSystem(maxCycles)
+		got, err := u.RunWithSystem(maxCycles, t)
 		if err != nil {
 			t.Fatalf("Execution failed: %s", err)
 		}
