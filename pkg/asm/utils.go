@@ -34,7 +34,7 @@ ulp_mutex_take:
 	st r0, r3, -1 // store value on stack
 	move r0, 1
 	st r0, r0, (__boot_data_start-1) // flag[0] = true
-	st r0, r0, (__boot_data_start-1)+1 // turn = 1
+	st r0, r0, (__boot_data_start-1)+2 // turn = 1
 	// while (flag[1] && turn == 1) { }
 ulp_mutex_take.loop:
 	// this loop assumes that 'flag[1]' and 'turn' can only be 0 or 1
