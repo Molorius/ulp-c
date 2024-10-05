@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/Molorius/ulp-c/pkg/asm/token"
 )
@@ -219,10 +220,11 @@ func (c *Compiler) buildAsm(start int, s string, bin []byte, addr map[int][]*Lab
 				if l.Name == "." {
 					continue
 				}
+				fixed := strings.ReplaceAll(l.Name, ".", "_DOT_")
 				if l.Global {
-					s += fmt.Sprintf(".global %s\n", l.Name)
+					s += fmt.Sprintf(".global %s\n", fixed)
 				}
-				s += fmt.Sprintf("%s:\n", l.Name)
+				s += fmt.Sprintf("%s:\n", fixed)
 			}
 		}
 		s += fmt.Sprintf("    .byte 0x%02X\n", b)
