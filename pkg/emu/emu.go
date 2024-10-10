@@ -130,7 +130,7 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 				u.R[rdst] = out16
 				u.Zero = out16 == 0
 			case 3: // or
-				out := val1 & imm
+				out := val1 | imm
 				out16 := uint16(out)
 				u.R[rdst] = out16
 				u.Zero = out16 == 0

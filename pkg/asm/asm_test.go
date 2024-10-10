@@ -55,7 +55,7 @@ func TestJumpr(t *testing.T) {
 	}
 }
 
-func buildSimpleOutput(ops string) string {
+func buildOrderOfOps(ops string) string {
 	s := `
 	move r0, %s
 	st r0, r3, 0
@@ -98,7 +98,35 @@ func TestOrderOfOperations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RunTestWithHeader(t, buildSimpleOutput(tt.ops), tt.expect, true)
+			RunTestWithHeader(t, buildOrderOfOps(tt.ops), tt.expect, true)
+		})
+	}
+}
+
+func buildAlu(ops string) string {
+	s := `
+	%s
+	st r0, r3, 0
+	call print_u16
+	`
+	return fmt.Sprintf(s, ops)
+}
+
+func TestAlu(t *testing.T) {
+	tests := []struct {
+		name   string
+		ops    string
+		expect string
+	}{
+		{
+			name:   "| immediate",
+			ops:    "move r0, 0b1100\r\n or r0, r0, 0b01",
+			expect: "13 ",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RunTestWithHeader(t, buildAlu(tt.ops), tt.expect, true)
 		})
 	}
 }
