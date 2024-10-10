@@ -9,6 +9,7 @@ package usb_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Molorius/ulp-c/pkg/asm"
 	"github.com/Molorius/ulp-c/pkg/usb"
@@ -36,7 +37,8 @@ func TestSimpleHardware(t *testing.T) {
 	}
 
 	// open port if the environment variable is set
-	err = h.OpenPortFromEnv()
+	timeout := 2 * time.Second
+	err = h.OpenPortFromEnv(timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +50,7 @@ func TestSimpleHardware(t *testing.T) {
 	// test that it works repeatedly
 	testRuns := 5
 	for i := 0; i < testRuns; i++ {
-		_, err = h.Execute(bin)
+		_, err = h.Execute(bin, t)
 		if err != nil {
 			t.Fatalf("Test %d failed: %s", i, err)
 		}
@@ -88,7 +90,8 @@ mutex:
 		t.Fatalf("Failed to compile: %s", err)
 	}
 
-	err = h.OpenPortFromEnv()
+	timeout := 2 * time.Second
+	err = h.OpenPortFromEnv(timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +103,7 @@ mutex:
 	// test that it works repeatedly
 	testRuns := 5
 	for i := 0; i < testRuns; i++ {
-		_, err = h.Execute(bin)
+		_, err = h.Execute(bin, t)
 		if err != nil {
 			t.Fatalf("Test %d failed: %s", i, err)
 		}

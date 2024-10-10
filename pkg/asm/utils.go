@@ -9,6 +9,7 @@ package asm
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Molorius/ulp-c/pkg/emu"
 	"github.com/Molorius/ulp-c/pkg/usb"
@@ -152,17 +153,18 @@ jump done
 `
 
 type Runner struct {
-	AssemblyName  string       // the "name" of the input assembly files
-	ReservedBytes int          // the number of bytes reserved for the emulator
-	Reduce        bool         // should the assembler perform code reduction
-	Hardware      usb.Hardware // the serial port (optional)
+	AssemblyName  string        // the "name" of the input assembly files
+	ReservedBytes int           // the number of bytes reserved for the emulator
+	Reduce        bool          // should the assembler perform code reduction
+	Timeout       time.Duration // maximum time per test allowed
+	Hardware      usb.Hardware  // the serial port (optional)
 }
 
 // Set up the serial port based on the ESP_PORT environment variable.
 // Returns an error if the port fails to open but not if ESP_PORT is not set.
 // If you need to check whether the port is open, use `PortSet()`.
 func (r *Runner) SetupPort() error {
-	return r.Hardware.OpenPortFromEnv()
+	return r.Hardware.OpenPortFromEnv(r.Timeout)
 }
 
 // Returns true if the serial port is set up.
@@ -179,6 +181,7 @@ func (r *Runner) SetDefaults() {
 	r.AssemblyName = "test.S"
 	r.ReservedBytes = 8176
 	r.Reduce = true
+	r.Timeout = 2 * time.Second
 }
 
 func (r *Runner) RunTestWithHeader(t *testing.T, asm string, expect string) {
@@ -199,7 +202,7 @@ func (r *Runner) RunTest(t *testing.T, asm string, expect string) {
 		if !r.PortSet() {
 			t.Skipf("Skipping test: %v", err)
 		}
-		got, err := r.Hardware.Execute(bin)
+		got, err := r.Hardware.Execute(bin, t)
 		if err != nil {
 			t.Fatalf("Execution failed: %s", err)
 		}
@@ -211,8 +214,7 @@ func (r *Runner) RunTest(t *testing.T, asm string, expect string) {
 	// run the test on emulator
 	t.Run("emulator", func(t *testing.T) {
 		u := emu.UlpEmu{}
-		maxSeconds := 1 // maximum emulated seconds
-		maxCycles := uint64(8_000_000 * maxSeconds)
+		maxCycles := uint64(8_000_000 * r.Timeout / time.Second)
 		err := u.LoadBinary(bin)
 		if err != nil {
 			t.Fatalf("Loading binary failed: %s", err)

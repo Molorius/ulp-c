@@ -289,7 +289,7 @@ func (u *UlpEmu) RunWithSystem(maxCycles uint64, t *testing.T) (string, error) {
 	prev := uint32(0)
 	for {
 		if u.cycles >= maxCycles {
-			return out, fmt.Errorf("exceeded max cycles: %s", out)
+			return out, fmt.Errorf("exceeded max cycles. max: %d cycles: %d", maxCycles, u.cycles)
 		}
 		err := u.Tick()
 		if err != nil {
