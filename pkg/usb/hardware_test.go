@@ -35,15 +35,20 @@ func TestSimpleHardware(t *testing.T) {
 		t.Fatalf("Failed to compile: %s", err)
 	}
 
-	port, err := h.EnvPort()
+	// open port if the environment variable is set
+	err = h.OpenPortFromEnv()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if !h.PortSet() {
 		t.Skipf("Skipping test: %v", err)
 	}
+	defer h.Close()
 
 	// test that it works repeatedly
 	testRuns := 5
 	for i := 0; i < testRuns; i++ {
-		_, err = h.Execute(port, bin)
+		_, err = h.Execute(bin)
 		if err != nil {
 			t.Fatalf("Test %d failed: %s", i, err)
 		}
@@ -83,15 +88,19 @@ mutex:
 		t.Fatalf("Failed to compile: %s", err)
 	}
 
-	port, err := h.EnvPort()
+	err = h.OpenPortFromEnv()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if !h.PortSet() {
 		t.Skipf("Skipping test: %v", err)
 	}
+	defer h.Close()
 
 	// test that it works repeatedly
 	testRuns := 5
 	for i := 0; i < testRuns; i++ {
-		_, err = h.Execute(port, bin)
+		_, err = h.Execute(bin)
 		if err != nil {
 			t.Fatalf("Test %d failed: %s", i, err)
 		}

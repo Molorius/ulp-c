@@ -22,22 +22,48 @@ type Hardware struct {
 	port serial.Port
 }
 
+// Open the port based on the environment variable.
+func (h *Hardware) OpenPortFromEnv() error {
+	portPath, err := h.EnvPort()
+	if err != nil {
+		return nil // don't set the port or error
+	}
+	return h.OpenPort(portPath)
+}
+
+func (h *Hardware) PortSet() bool {
+	return h.port != nil
+}
+
+// Open the port.
+func (h *Hardware) OpenPort(path string) error {
+	mode := &serial.Mode{
+		BaudRate: 115200,
+	}
+	var err error
+	h.port, err = serial.Open(path, mode)
+	return err
+}
+
+// Close the port, if open.
+func (h *Hardware) Close() error {
+	if h.port == nil {
+		return nil
+	}
+	return h.port.Close()
+}
+
 func (h *Hardware) encode(bin []byte) string {
 	return base64.StdEncoding.EncodeToString(bin)
 }
 
 // execute the binary while returning the unprocessed outputs
-func (h *Hardware) executeRaw(portPath string, payload string) (string, error) {
+func (h *Hardware) executeRaw(payload string) (string, error) {
+	if h.port == nil {
+		return "", fmt.Errorf("port not set up")
+	}
 	var err error
 
-	mode := &serial.Mode{
-		BaudRate: 115200,
-	}
-	h.port, err = serial.Open(portPath, mode)
-	if err != nil {
-		return "", fmt.Errorf("serial.Open fail with %s: %s", portPath, err)
-	}
-	defer h.port.Close()
 	h.port.ResetInputBuffer()
 	h.port.ResetOutputBuffer()
 	h.port.SetReadTimeout(2 * time.Second)
@@ -72,11 +98,10 @@ func (h *Hardware) executeRaw(portPath string, payload string) (string, error) {
 	}
 }
 
-// Execute a binary `bin` on path `portPath`
-func (h *Hardware) Execute(portPath string, bin []byte) (string, error) {
-
+// Execute a binary `bin`
+func (h *Hardware) Execute(bin []byte) (string, error) {
 	encoded := h.encode(bin)
-	words, err := h.executeRaw(portPath, encoded)
+	words, err := h.executeRaw(encoded)
 	if err != nil {
 		return "", err
 	}
@@ -89,15 +114,6 @@ func (h *Hardware) Execute(portPath string, bin []byte) (string, error) {
 		return words, fmt.Errorf("error from ulp app: \"%v\"", words)
 	}
 	return "", fmt.Errorf("error from test app: \"%v\"", strconv.Quote(words))
-}
-
-// Execute a binary, obtain the path automatically.
-func (h *Hardware) ExecuteEnv(bin []byte) (string, error) {
-	port, err := h.EnvPort()
-	if err != nil {
-		return "", err
-	}
-	return h.Execute(port, bin)
 }
 
 func (h *Hardware) EnvPort() (string, error) {

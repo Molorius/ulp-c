@@ -151,29 +151,55 @@ const TEST_POSTLUDE = `
 jump done
 `
 
-func RunTestWithHeader(t *testing.T, asm string, expect string, reduce bool) {
-	content := TEST_PRELUDE + asm + TEST_POSTLUDE
-	RunTest(t, content, expect, reduce)
+type Runner struct {
+	AssemblyName  string       // the "name" of the input assembly files
+	ReservedBytes int          // the number of bytes reserved for the emulator
+	Reduce        bool         // should the assembler perform code reduction
+	Hardware      usb.Hardware // the serial port (optional)
 }
 
-func RunTest(t *testing.T, asm string, expect string, reduce bool) {
+// Set up the serial port based on the ESP_PORT environment variable.
+// Returns an error if the port fails to open but not if ESP_PORT is not set.
+// If you need to check whether the port is open, use `PortSet()`.
+func (r *Runner) SetupPort() error {
+	return r.Hardware.OpenPortFromEnv()
+}
+
+// Returns true if the serial port is set up.
+func (r *Runner) PortSet() bool {
+	return r.Hardware.PortSet()
+}
+
+func (r *Runner) Close() error {
+	return r.Hardware.Close()
+}
+
+// Sets AssemblyName, ReservedBytes, and Reduce to a default.
+func (r *Runner) SetDefaults() {
+	r.AssemblyName = "test.S"
+	r.ReservedBytes = 8176
+	r.Reduce = true
+}
+
+func (r *Runner) RunTestWithHeader(t *testing.T, asm string, expect string) {
+	content := TEST_PRELUDE + asm + TEST_POSTLUDE
+	r.RunTest(t, content, expect)
+}
+
+func (r *Runner) RunTest(t *testing.T, asm string, expect string) {
 	// compile the binary
 	a := Assembler{}
-	filename := "test.S"
-	reserved := 8176
-	bin, err := a.BuildFile(asm, filename, reserved, reduce)
+	bin, err := a.BuildFile(asm, r.AssemblyName, r.ReservedBytes, r.Reduce)
 	if err != nil {
 		t.Fatalf("Failed to compile: %s", err)
 	}
 
 	// run the test on hardware
 	t.Run("hardware", func(t *testing.T) {
-		hw := usb.Hardware{}
-		port, err := hw.EnvPort()
-		if err != nil {
+		if !r.PortSet() {
 			t.Skipf("Skipping test: %v", err)
 		}
-		got, err := hw.Execute(port, bin)
+		got, err := r.Hardware.Execute(bin)
 		if err != nil {
 			t.Fatalf("Execution failed: %s", err)
 		}

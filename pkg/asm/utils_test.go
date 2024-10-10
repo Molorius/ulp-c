@@ -59,9 +59,16 @@ func TestTheRunnerWithHeaders(t *testing.T) {
 			expect: "123 ",
 		},
 	}
+	r := Runner{}
+	r.SetDefaults()
+	err := r.SetupPort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RunTestWithHeader(t, tt.asm, tt.expect, true)
+			r.RunTestWithHeader(t, tt.asm, tt.expect)
 		})
 	}
 }
