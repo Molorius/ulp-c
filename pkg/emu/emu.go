@@ -58,7 +58,7 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 	subOp := bitRead(instr, 25, 3)
 	switch op {
 	case 7: // operations
-		u.cycles += 6 // 2 to execute, 4 to fetch next
+		u.cycles += 4 // 2 execute 4 fetch, but tested differently
 		u.IP++
 		rdst := bitRead(instr, 0, 2)
 		rsrc1 := bitRead(instr, 2, 2)
@@ -266,7 +266,7 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 	case 9: // wake
 		u.Wake = true
 		u.IP++
-		u.cycles += 6 // 2 execute 4 fetch
+		u.cycles += 85 // 2 execute 4 fetch, but tested differently
 	case 4: // wait
 		imm := bitRead(instr, 0, 16)
 		u.IP++
