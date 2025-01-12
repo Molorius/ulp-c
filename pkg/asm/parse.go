@@ -132,14 +132,12 @@ func (p *parser) instruction() (Stmnt, error) {
 		Instruction: t,
 		Args:        args,
 	}
+	s.Setup()
 	err = s.validate()
 	if err != nil {
 		return nil, err
 	}
-	return StmntInstr{
-		Instruction: t,
-		Args:        args,
-	}, nil
+	return s, nil
 }
 
 func (p *parser) label() (Stmnt, error) {

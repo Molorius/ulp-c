@@ -105,10 +105,16 @@ type StmntInstr struct {
 	Instruction Token
 	Args        []Arg
 	labels      *map[string]*Label
+	str         string
 }
 
-func (s StmntInstr) String() string {
-	return fmt.Sprintf("{%s %s}", s.Instruction, s.Args)
+func (s *StmntInstr) Setup() {
+	// pregenerate the string
+	s.str = fmt.Sprintf("{%s %s}", s.Instruction, s.Args)
+}
+
+func (s *StmntInstr) String() string {
+	return s.str
 }
 
 // Is the instruction reducable? Does not include arguments.

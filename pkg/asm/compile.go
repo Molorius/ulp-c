@@ -421,6 +421,7 @@ func (c *Compiler) reduceCommon(depth int) error {
 		},
 		Args: []Arg{jumpArg},
 	}
+	jumpStmnt.Setup()
 	labelStmnt := StmntLabel{
 		Label: tok,
 	}
