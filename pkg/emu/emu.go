@@ -44,13 +44,19 @@ func (u *UlpEmu) LoadBinary(bin []uint8) error {
 }
 
 func (u *UlpEmu) Tick() error {
-	instr := u.Fetch()
+	instr, err := u.Fetch()
+	if err != nil {
+		return err
+	}
 	return u.DecodeExecute(instr)
 }
 
-func (u *UlpEmu) Fetch() uint32 {
+func (u *UlpEmu) Fetch() (uint32, error) {
+	if int(u.IP) >= len(u.Memory) {
+		return 0, fmt.Errorf("Fetch out of bounds: 0x%X", u.IP)
+	}
 	intsr := u.Memory[u.IP]
-	return intsr
+	return intsr, nil
 }
 
 func (u *UlpEmu) DecodeExecute(instr uint32) error {
@@ -177,6 +183,9 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 		value := (upper << 16) | lower
 		address := u.R[rdst] + uint16(offset)
 		address = address & 0x7FF
+		if int(address) >= len(u.Memory) {
+			return fmt.Errorf("storing outside of bounds at address 0x%X", address)
+		}
 		u.Memory[address] = value
 		u.IP++
 		u.cycles += 8
@@ -186,6 +195,9 @@ func (u *UlpEmu) DecodeExecute(instr uint32) error {
 		offset := bitRead(instr, 10, 11)
 		address := u.R[rsrc] + uint16(offset)
 		address = address & 0x7FF
+		if int(address) >= len(u.Memory) {
+			return fmt.Errorf("loading outside of bounds at address 0x%X", address)
+		}
 		value := u.Memory[address]
 		u.R[rdst] = uint16(value)
 		u.IP++
