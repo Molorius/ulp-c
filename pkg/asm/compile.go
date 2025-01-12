@@ -42,19 +42,25 @@ type ReduceTrie struct {
 
 func (r *ReduceTrie) AddChild(index int, instruction StmntInstr) (*ReduceTrie, error) {
 	name := instruction.String()
-	child, ok := r.Children[name]
-	if ok { // if this child is already created
-		child.Indexes = append(child.Indexes, index)
-		return child, nil
+	var child *ReduceTrie
+	if r.Children == nil { // if no children yet
+		r.Children = make(map[string]*ReduceTrie)
+	} else { // we have at least 1 child
+		var ok bool
+		child, ok = r.Children[name]
+		if ok { // if this child is already created
+			child.Indexes = append(child.Indexes, index)
+			return child, nil
+		}
 	}
-	indexes := make([]int, 0)
-	indexes = append(indexes, index)
+	indexes := make([]int, 1)
+	indexes[0] = index
+
 	child = &ReduceTrie{
 		Indexes:   indexes,
 		Depth:     r.Depth + 1,
 		Instr:     name,
 		TokenType: instruction.Instruction.TokenType,
-		Children:  make(map[string]*ReduceTrie),
 		Parent:    r,
 		Final:     instruction.IsFinalReduce(),
 	}
@@ -75,14 +81,16 @@ func (r *ReduceTrie) Value() int {
 func (r *ReduceTrie) Max() (*ReduceTrie, int, error) {
 	currentMax := r.Value()
 	currentNode := r
-	for _, c := range r.Children {
-		checkNode, checkMax, err := c.Max()
-		if err != nil {
-			return nil, 0, err
-		}
-		if checkMax > currentMax {
-			currentMax = checkMax
-			currentNode = checkNode
+	if r.Children != nil {
+		for _, c := range r.Children {
+			checkNode, checkMax, err := c.Max()
+			if err != nil {
+				return nil, 0, err
+			}
+			if checkMax > currentMax {
+				currentMax = checkMax
+				currentNode = checkNode
+			}
 		}
 	}
 	if currentMax < 0 {
