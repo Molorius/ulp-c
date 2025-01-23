@@ -43,7 +43,7 @@ func TestSimpleHardware(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !h.PortSet() {
-		t.Skipf("Skipping test: %v", err)
+		t.Skipf("Port not set, skipping")
 	}
 	defer h.Close()
 
@@ -96,7 +96,7 @@ mutex:
 		t.Fatal(err)
 	}
 	if !h.PortSet() {
-		t.Skipf("Skipping test: %v", err)
+		t.Skipf("Port not set, skipping")
 	}
 	defer h.Close()
 

@@ -200,7 +200,7 @@ func (r *Runner) RunTest(t *testing.T, asm string, expect string) {
 	// run the test on hardware
 	t.Run("hardware", func(t *testing.T) {
 		if !r.PortSet() {
-			t.Skipf("Skipping test: %v", err)
+			t.Skipf("Port not set, skipping")
 		}
 		got, err := r.Hardware.Execute(bin, t)
 		if err != nil {
