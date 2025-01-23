@@ -1,0 +1,25 @@
+name: tests
+
+# run `go test ./...` on every push and every pull request
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install dependencies
+        run: go mod tidy
+      - name: Build
+        run: go build -v ./...
+      - name: Test
+        run: go test -v ./...
