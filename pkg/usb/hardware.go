@@ -8,9 +8,15 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 package usb
 
 import (
+	"bufio"
+	_ "embed"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -84,7 +90,7 @@ func (h *Hardware) resetInput(t *testing.T) error {
 		t.Log("resetting usb input")
 		h.port.SetDTR(false) // send reset signal to many dev boards
 		h.port.SetDTR(true)
-		time.Sleep(100 * time.Millisecond)   // wait for input
+		time.Sleep(300 * time.Millisecond)   // wait for input
 		h.port.ResetInputBuffer()            // reset the input buffer
 		_, err := h.port.Write([]byte("\n")) // write a newline, esp32 should print " ok\r\n"
 		if err != nil {
@@ -192,7 +198,71 @@ func (h *Hardware) EnvPort() (string, error) {
 	port_env := "ESP_PORT"
 	path := os.Getenv(port_env)
 	if path == "" {
-		return "", fmt.Errorf(port_env + " not set")
+		return "", fmt.Errorf("environment variable %s not set", port_env)
 	}
 	return path, nil
+}
+
+//go:embed test_app/test_app.bin
+var testApp []byte
+
+// WriteTestApp takes in a serial port
+// and attempts to write the test application
+// to that port using esptool.py.
+func WriteTestApp(port string) error {
+	// create a directory to hold the test app
+	dir, err := os.MkdirTemp("", "test_app")
+	if err != nil {
+		return errors.Join(fmt.Errorf("error creating directory to upload test app"), err)
+	}
+	defer os.RemoveAll(dir)
+	// put the test app in the directory
+	f := filepath.Join(dir, "test_app.bin")
+	err = os.WriteFile(f, testApp, 0666)
+	if err != nil {
+		return errors.Join(fmt.Errorf("error writing test app to file"), err)
+	}
+	// write to the esp32
+	cmd := exec.Command(
+		"esptool.py",
+		"--chip", "esp32",
+		"--port", port,
+		"--baud", "460800",
+		"write_flash", "-z", "0x1000",
+		f,
+	)
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	go printPipe(stdoutPipe)
+	go printPipe(stderrPipe)
+
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// printPipe takes in a io.ReadCloser pipe
+// and prints the contents until the
+// pipe closes.
+func printPipe(pipe io.ReadCloser) {
+	reader := bufio.NewReader(pipe)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return
+		}
+		fmt.Print(line)
+	}
 }
